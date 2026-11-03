@@ -1,0 +1,33 @@
+# Perfil interno legado. Para VPS HTTPS em :8080 use compose.online.yml.
+# Execute a partir de api-fiscal/: docker compose -f docker/compose.externo.yml up -d --build
+name: emissor-fiscal-externo
+x-app: &app
+  build: {context: ., target: fiscal-cli}
+  image: emissor-nfe-php:8.3.36
+  restart: unless-stopped
+  user: "10096:10096"
+  volumes:
+    - ..:/app
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+services:
+  web:
+    <<: *app
+    command: ["bash", "/app/docker/run-web.sh"]
+    ports: ["127.0.0.1:8081:8000"]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/api/v1/health') === false ? 1 : 0);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    <<: *app
+    command: ["php", "bin/worker.php"]
+    mem_limit: 256m
+    depends_on:
+      web: {condition: service_healthy}

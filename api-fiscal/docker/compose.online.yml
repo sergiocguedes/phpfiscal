@@ -1,0 +1,45 @@
+# API pública HTTPS em :8080; Supabase e B2 externos. Não inicia PostgreSQL.
+name: emissor-online
+x-app: &app
+  build: {context: ., target: fiscal-fpm}
+  image: emissor-fiscal-online:3.1
+  restart: unless-stopped
+  user: "10096:10096"
+  volumes:
+    - ..:/app:ro
+    - ../.env.online:/app/.env:ro
+    - ../storage-online:/app/storage
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+services:
+  preparar:
+    <<: *app
+    restart: "no"
+    command: [php, bin/banco.php]
+  php:
+    <<: *app
+    command: [php-fpm, -F]
+    depends_on:
+      preparar: {condition: service_completed_successfully}
+  web:
+    image: nginx:stable-alpine
+    user: "101:101"
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    ports: ["8080:8443"]
+    volumes:
+      - ./nginx-online.conf:/etc/nginx/nginx.conf:ro
+      - ../secrets/tls:/etc/nginx/tls:ro
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on:
+      php: {condition: service_started}
+  worker:
+    <<: *app
+    command: [php, bin/worker.php]
+    depends_on:
+      preparar: {condition: service_completed_successfully}

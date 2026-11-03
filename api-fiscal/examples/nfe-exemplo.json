@@ -1,0 +1,40 @@
+{
+  "natureza_operacao": "VENDA DE MERCADORIA",
+  "pedido_id": "PED-1001",
+  "consumidor_final": 1,
+  "presenca": 2,
+  "destinatario": {
+    "cpf": "12345678909",
+    "nome": "Cliente de Teste",
+    "email": "cliente@example.com",
+    "endereco": {
+      "logradouro": "Avenida Paulista",
+      "numero": "1000",
+      "bairro": "Bela Vista",
+      "codigo_municipio": "3550308",
+      "municipio": "Sao Paulo",
+      "uf": "SP",
+      "cep": "01310100"
+    }
+  },
+  "itens": [
+    {
+      "codigo": "SKU-001",
+      "descricao": "Camiseta de algodao",
+      "ncm": "61091000",
+      "cfop": "5102",
+      "unidade": "UN",
+      "quantidade": 2,
+      "valor_unitario": 49.90,
+      "valor_aproximado_tributos": 12.50,
+      "impostos": {
+        "icms": { "orig": 0, "CSOSN": "102" },
+        "pis": { "CST": "07" },
+        "cofins": { "CST": "07" }
+      }
+    }
+  ],
+  "frete": { "modalidade": 9 },
+  "pagamentos": [ { "forma": "17", "valor": 99.80 } ],
+  "informacoes_complementares": "Pedido PED-1001"
+}

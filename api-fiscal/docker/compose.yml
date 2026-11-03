@@ -1,0 +1,63 @@
+name: emissor-nfe
+x-app: &app
+  build: {context: ., target: fiscal-cli}
+  image: emissor-nfe-php:8.3.36
+  restart: unless-stopped
+  user: "10096:10096"
+  environment:
+    TZ: America/Sao_Paulo
+  volumes:
+    - ..:/app:ro
+    - ../../storage:/app/storage
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_DB: fiscal
+      POSTGRES_USER: fiscal
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Configure DATABASE_PASSWORD no arquivo .env passado ao Compose}
+    volumes:
+      - fiscal-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiscal -d fiscal"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  web:
+    <<: *app
+    command: ["bash", "/app/docker/run-web.sh"]
+    ports:
+      - "127.0.0.1:8081:8000"
+    mem_limit: 512m
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/api/v1/health') === false ? 1 : 0);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+  worker:
+    <<: *app
+    command: ["php", "bin/worker.php"]
+    mem_limit: 256m
+    depends_on:
+      web:
+        condition: service_healthy
+volumes:
+  fiscal-db:
+    external: true
+    name: emissor-nfe_fiscal-db

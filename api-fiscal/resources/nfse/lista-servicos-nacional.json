@@ -1,0 +1,1698 @@
+{
+"_meta": {
+"fonte": "ANEXO_B-NBS2-LISTA_SERVICO_NACIONAL-SNNFSe-v1.01-20260122 (https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual/anexo_b-nbs2-lista_servico_nacional-snnfse-v1-01-20260122.xlsx)",
+"gerado_em": "2026-10-14"
+},
+"servicos": [
+{
+"codigo": "010101",
+"item_lc116": "01.01",
+"descricao": "Análise e desenvolvimento de sistemas."
+},
+{
+"codigo": "010201",
+"item_lc116": "01.02",
+"descricao": "Programação."
+},
+{
+"codigo": "010301",
+"item_lc116": "01.03",
+"descricao": "Processamento de dados, textos, imagens, vídeos, páginas eletrônicas, aplicativos e sistemas de informação, entre outros formatos, e congêneres."
+},
+{
+"codigo": "010302",
+"item_lc116": "01.03",
+"descricao": "Armazenamento ou hospedagem de dados, textos, imagens, vídeos, páginas eletrônicas, aplicativos e sistemas de informação, entre outros formatos, e congêneres."
+},
+{
+"codigo": "010401",
+"item_lc116": "01.04",
+"descricao": "Elaboração de programas de computadores, inclusive de jogos eletrônicos, independentemente da arquitetura construtiva da máquina em que o programa será executado, incluindo tablets, smartphones e congêneres."
+},
+{
+"codigo": "010501",
+"item_lc116": "01.05",
+"descricao": "Licenciamento ou cessão de direito de uso de programas de computação."
+},
+{
+"codigo": "010601",
+"item_lc116": "01.06",
+"descricao": "Assessoria e consultoria em informática."
+},
+{
+"codigo": "010701",
+"item_lc116": "01.07",
+"descricao": "Suporte técnico em informática, inclusive instalação, configuração e manutenção de programas de computação e bancos de dados."
+},
+{
+"codigo": "010801",
+"item_lc116": "01.08",
+"descricao": "Planejamento, confecção, manutenção e atualização de páginas eletrônicas."
+},
+{
+"codigo": "010901",
+"item_lc116": "01.09",
+"descricao": "Disponibilização, sem cessão definitiva, de conteúdos de áudio por meio da internet (exceto a distribuição de conteúdos pelas prestadoras de Serviço de Acesso Condicionado, de que trata a Lei nº 12.485, de 12 de setembro de 2011, sujeita ao ICMS)."
+},
+{
+"codigo": "010902",
+"item_lc116": "01.09",
+"descricao": "Disponibilização, sem cessão definitiva, de conteúdos de vídeo, imagem e texto por meio da internet, respeitada a imunidade de livros, jornais e periódicos (exceto a distribuição de conteúdos pelas prestadoras de Serviço de Acesso Condicionado, de que trata a Lei nº 12.485, de 12 de setembro de 2011, sujeita ao ICMS)."
+},
+{
+"codigo": "020101",
+"item_lc116": "02.01",
+"descricao": "Serviços de pesquisas e desenvolvimento de qualquer natureza."
+},
+{
+"codigo": "030201",
+"item_lc116": "03.02",
+"descricao": "Cessão de direito de uso de marcas e de sinais de propaganda."
+},
+{
+"codigo": "030301",
+"item_lc116": "03.03",
+"descricao": "Exploração de salões de festas, centro de convenções, stands e congêneres, para realização de eventos ou negócios de qualquer natureza."
+},
+{
+"codigo": "030302",
+"item_lc116": "03.03",
+"descricao": "Exploração de escritórios virtuais e congêneres, para realização de eventos ou negócios de qualquer natureza."
+},
+{
+"codigo": "030303",
+"item_lc116": "03.03",
+"descricao": "Exploração de quadras esportivas, estádios, ginásios, canchas e congêneres, para realização de eventos ou negócios de qualquer natureza."
+},
+{
+"codigo": "030304",
+"item_lc116": "03.03",
+"descricao": "Exploração de auditórios, casas de espetáculos e congêneres, para realização de eventos ou negócios de qualquer natureza."
+},
+{
+"codigo": "030305",
+"item_lc116": "03.03",
+"descricao": "Exploração de parques de diversões e congêneres, para realização de eventos ou negócios de qualquer natureza."
+},
+{
+"codigo": "030401",
+"item_lc116": "03.04",
+"descricao": "Locação, sublocação, arrendamento, direito de passagem ou permissão de uso, compartilhado ou não, de ferrovia."
+},
+{
+"codigo": "030402",
+"item_lc116": "03.04",
+"descricao": "Locação, sublocação, arrendamento, direito de passagem ou permissão de uso, compartilhado ou não, de rodovia."
+},
+{
+"codigo": "030403",
+"item_lc116": "03.04",
+"descricao": "Locação, sublocação, arrendamento, direito de passagem ou permissão de uso, compartilhado ou não, de postes, cabos, dutos e condutos de qualquer natureza."
+},
+{
+"codigo": "030501",
+"item_lc116": "03.05",
+"descricao": "Cessão de andaimes, palcos, coberturas e outras estruturas de uso temporário."
+},
+{
+"codigo": "040101",
+"item_lc116": "04.01",
+"descricao": "Medicina."
+},
+{
+"codigo": "040102",
+"item_lc116": "04.01",
+"descricao": "Biomedicina."
+},
+{
+"codigo": "040201",
+"item_lc116": "04.02",
+"descricao": "Análises clínicas e congêneres."
+},
+{
+"codigo": "040202",
+"item_lc116": "04.02",
+"descricao": "Patologia e congêneres."
+},
+{
+"codigo": "040203",
+"item_lc116": "04.02",
+"descricao": "Eletricidade médica (eletroestimulação de nervos e musculos, cardioversão, etc) e congêneres."
+},
+{
+"codigo": "040204",
+"item_lc116": "04.02",
+"descricao": "Radioterapia, quimioterapia e congêneres."
+},
+{
+"codigo": "040205",
+"item_lc116": "04.02",
+"descricao": "Ultra-sonografia, ressonância magnética, radiologia, tomografia e congêneres."
+},
+{
+"codigo": "040301",
+"item_lc116": "04.03",
+"descricao": "Hospitais e congêneres."
+},
+{
+"codigo": "040302",
+"item_lc116": "04.03",
+"descricao": "Laboratórios e congêneres."
+},
+{
+"codigo": "040303",
+"item_lc116": "04.03",
+"descricao": "Clínicas, sanatórios, manicômios, casas de saúde, prontos-socorros, ambulatórios e congêneres."
+},
+{
+"codigo": "040401",
+"item_lc116": "04.04",
+"descricao": "Instrumentação cirúrgica."
+},
+{
+"codigo": "040501",
+"item_lc116": "04.05",
+"descricao": "Acupuntura."
+},
+{
+"codigo": "040601",
+"item_lc116": "04.06",
+"descricao": "Enfermagem, inclusive serviços auxiliares."
+},
+{
+"codigo": "040701",
+"item_lc116": "04.07",
+"descricao": "Serviços farmacêuticos."
+},
+{
+"codigo": "040801",
+"item_lc116": "04.08",
+"descricao": "Terapia ocupacional."
+},
+{
+"codigo": "040802",
+"item_lc116": "04.08",
+"descricao": "Fisioterapia."
+},
+{
+"codigo": "040803",
+"item_lc116": "04.08",
+"descricao": "Fonoaudiologia."
+},
+{
+"codigo": "040901",
+"item_lc116": "04.09",
+"descricao": "Terapias de qualquer espécie destinadas ao tratamento físico, orgânico e mental."
+},
+{
+"codigo": "041001",
+"item_lc116": "04.10",
+"descricao": "Nutrição."
+},
+{
+"codigo": "041101",
+"item_lc116": "04.11",
+"descricao": "Obstetrícia."
+},
+{
+"codigo": "041201",
+"item_lc116": "04.12",
+"descricao": "Odontologia."
+},
+{
+"codigo": "041301",
+"item_lc116": "04.13",
+"descricao": "Ortóptica."
+},
+{
+"codigo": "041401",
+"item_lc116": "04.14",
+"descricao": "Próteses sob encomenda."
+},
+{
+"codigo": "041501",
+"item_lc116": "04.15",
+"descricao": "Psicanálise."
+},
+{
+"codigo": "041601",
+"item_lc116": "04.16",
+"descricao": "Psicologia."
+},
+{
+"codigo": "041701",
+"item_lc116": "04.17",
+"descricao": "Casas de repouso e congêneres."
+},
+{
+"codigo": "041702",
+"item_lc116": "04.17",
+"descricao": "Casas de recuperação e congêneres."
+},
+{
+"codigo": "041703",
+"item_lc116": "04.17",
+"descricao": "Creches e congêneres."
+},
+{
+"codigo": "041704",
+"item_lc116": "04.17",
+"descricao": "Asilos e congêneres."
+},
+{
+"codigo": "041801",
+"item_lc116": "04.18",
+"descricao": "Inseminação artificial, fertilização in vitro e congêneres."
+},
+{
+"codigo": "041901",
+"item_lc116": "04.19",
+"descricao": "Bancos de sangue, leite, pele, olhos, óvulos, sêmen e congêneres."
+},
+{
+"codigo": "042001",
+"item_lc116": "04.20",
+"descricao": "Coleta de sangue, leite, tecidos, sêmen, órgãos e materiais biológicos de qualquer espécie."
+},
+{
+"codigo": "042101",
+"item_lc116": "04.21",
+"descricao": "Unidade de atendimento, assistência ou tratamento móvel e congêneres."
+},
+{
+"codigo": "042201",
+"item_lc116": "04.22",
+"descricao": "Planos de medicina de grupo ou individual e convênios para prestação de assistência médica, hospitalar, odontológica e congêneres."
+},
+{
+"codigo": "042301",
+"item_lc116": "04.23",
+"descricao": "Outros planos de saúde que se cumpram através de serviços de terceiros contratados, credenciados, cooperados ou apenas pagos pelo operador do plano mediante indicação do beneficiário."
+},
+{
+"codigo": "050101",
+"item_lc116": "05.01",
+"descricao": "Medicina veterinária"
+},
+{
+"codigo": "050102",
+"item_lc116": "05.01",
+"descricao": "Zootecnia."
+},
+{
+"codigo": "050201",
+"item_lc116": "05.02",
+"descricao": "Hospitais e congêneres, na área veterinária."
+},
+{
+"codigo": "050202",
+"item_lc116": "05.02",
+"descricao": "Clínicas, ambulatórios, prontos-socorros e congêneres, na área veterinária."
+},
+{
+"codigo": "050301",
+"item_lc116": "05.03",
+"descricao": "Laboratórios de análise na área veterinária."
+},
+{
+"codigo": "050401",
+"item_lc116": "05.04",
+"descricao": "Inseminação artificial, fertilização in vitro e congêneres."
+},
+{
+"codigo": "050501",
+"item_lc116": "05.05",
+"descricao": "Bancos de sangue e de órgãos e congêneres."
+},
+{
+"codigo": "050601",
+"item_lc116": "05.06",
+"descricao": "Coleta de sangue, leite, tecidos, sêmen, órgãos e materiais biológicos de qualquer espécie."
+},
+{
+"codigo": "050701",
+"item_lc116": "05.07",
+"descricao": "Unidade de atendimento, assistência ou tratamento móvel e congêneres."
+},
+{
+"codigo": "050801",
+"item_lc116": "05.08",
+"descricao": "Guarda, tratamento, amestramento, embelezamento, alojamento e congêneres."
+},
+{
+"codigo": "050901",
+"item_lc116": "05.09",
+"descricao": "Planos de atendimento e assistência médico-veterinária."
+},
+{
+"codigo": "060101",
+"item_lc116": "06.01",
+"descricao": "Barbearia, cabeleireiros, manicuros, pedicuros e congêneres."
+},
+{
+"codigo": "060201",
+"item_lc116": "06.02",
+"descricao": "Esteticistas, tratamento de pele, depilação e congêneres."
+},
+{
+"codigo": "060301",
+"item_lc116": "06.03",
+"descricao": "Banhos, duchas, sauna, massagens e congêneres."
+},
+{
+"codigo": "060401",
+"item_lc116": "06.04",
+"descricao": "Ginástica, dança, esportes, natação, artes marciais e demais atividades físicas."
+},
+{
+"codigo": "060501",
+"item_lc116": "06.05",
+"descricao": "Centros de emagrecimento, spa e congêneres."
+},
+{
+"codigo": "060601",
+"item_lc116": "06.06",
+"descricao": "Aplicação de tatuagens, piercings e congêneres."
+},
+{
+"codigo": "070101",
+"item_lc116": "07.01",
+"descricao": "Engenharia e congêneres."
+},
+{
+"codigo": "070102",
+"item_lc116": "07.01",
+"descricao": "Agronomia e congêneres."
+},
+{
+"codigo": "070103",
+"item_lc116": "07.01",
+"descricao": "Agrimensura e congêneres."
+},
+{
+"codigo": "070104",
+"item_lc116": "07.01",
+"descricao": "Arquitetura, urbanismo e congêneres."
+},
+{
+"codigo": "070105",
+"item_lc116": "07.01",
+"descricao": "Geologia e congêneres."
+},
+{
+"codigo": "070106",
+"item_lc116": "07.01",
+"descricao": "Paisagismo e congêneres."
+},
+{
+"codigo": "070201",
+"item_lc116": "07.02",
+"descricao": "Execução, por administração, de obras de construção civil, hidráulica ou elétrica e de outras obras semelhantes, inclusive sondagem, perfuração de poços, escavação, drenagem e irrigação, terraplanagem, pavimentação, concretagem e a instalação e montagem de produtos, peças e equipamentos (exceto o fornecimento de mercadorias produzidas pelo prestador de serviços fora do local da prestação dos serviços, que fica sujeito ao ICMS)."
+},
+{
+"codigo": "070202",
+"item_lc116": "07.02",
+"descricao": "Execução, por empreitada ou subempreitada, de obras de construção civil, hidráulica ou elétrica e de outras obras semelhantes, inclusive sondagem, perfuração de poços, escavação, drenagem e irrigação, terraplanagem, pavimentação, concretagem e a instalação e montagem de produtos, peças e equipamentos (exceto o fornecimento de mercadorias produzidas pelo prestador de serviços fora do local da prestação dos serviços, que fica sujeito ao ICMS)."
+},
+{
+"codigo": "070301",
+"item_lc116": "07.03",
+"descricao": "Elaboração de planos diretores, estudos de viabilidade, estudos organizacionais e outros, relacionados com obras e serviços de engenharia."
+},
+{
+"codigo": "070302",
+"item_lc116": "07.03",
+"descricao": "Elaboração de anteprojetos, projetos básicos e projetos executivos para trabalhos de engenharia."
+},
+{
+"codigo": "070401",
+"item_lc116": "07.04",
+"descricao": "Demolição."
+},
+{
+"codigo": "070501",
+"item_lc116": "07.05",
+"descricao": "Reparação, conservação e reforma de edifícios e congêneres (exceto o fornecimento de mercadorias produzidas pelo prestador dos serviços, fora do local da prestação dos serviços, que fica sujeito ao ICMS)."
+},
+{
+"codigo": "070502",
+"item_lc116": "07.05",
+"descricao": "Reparação, conservação e reforma de estradas, pontes, portos e congêneres (exceto o fornecimento de mercadorias produzidas pelo prestador dos serviços, fora do local da prestação dos serviços, que fica sujeito ao ICMS)."
+},
+{
+"codigo": "070601",
+"item_lc116": "07.06",
+"descricao": "Colocação e instalação de tapetes, carpetes, cortinas e congêneres, com material fornecido pelo tomador do serviço."
+},
+{
+"codigo": "070602",
+"item_lc116": "07.06",
+"descricao": "Colocação e instalação de assoalhos, revestimentos de parede, vidros, divisórias, placas de gesso e congêneres, com material fornecido pelo tomador do serviço."
+},
+{
+"codigo": "070701",
+"item_lc116": "07.07",
+"descricao": "Recuperação, raspagem, polimento e lustração de pisos e congêneres."
+},
+{
+"codigo": "070801",
+"item_lc116": "07.08",
+"descricao": "Calafetação."
+},
+{
+"codigo": "070901",
+"item_lc116": "07.09",
+"descricao": "Varrição, coleta e remoção de lixo, rejeitos e outros resíduos quaisquer."
+},
+{
+"codigo": "070902",
+"item_lc116": "07.09",
+"descricao": "Incineração, tratamento, reciclagem, separação e destinação final de lixo, rejeitos e outros resíduos quaisquer."
+},
+{
+"codigo": "071001",
+"item_lc116": "07.10",
+"descricao": "Limpeza, manutenção e conservação de vias e logradouros públicos, parques, jardins e congêneres."
+},
+{
+"codigo": "071002",
+"item_lc116": "07.10",
+"descricao": "Limpeza, manutenção e conservação de imóveis, chaminés, piscinas e congêneres."
+},
+{
+"codigo": "071101",
+"item_lc116": "07.11",
+"descricao": "Decoração."
+},
+{
+"codigo": "071102",
+"item_lc116": "07.11",
+"descricao": "Jardinagem, inclusive corte e poda de árvores."
+},
+{
+"codigo": "071201",
+"item_lc116": "07.12",
+"descricao": "Controle e tratamento de efluentes de qualquer natureza e de agentes físicos, químicos e biológicos."
+},
+{
+"codigo": "071301",
+"item_lc116": "07.13",
+"descricao": "Dedetização, desinfecção, desinsetização, imunização, higienização, desratização, pulverização e congêneres."
+},
+{
+"codigo": "071601",
+"item_lc116": "07.16",
+"descricao": "Florestamento, reflorestamento, semeadura, adubação, reparação de solo, plantio, silagem, colheita, corte e descascamento de árvores, silvicultura, exploração florestal e dos serviços congêneres indissociáveis da formação, manutenção e colheita de florestas, para quaisquer fins e por quaisquer meios."
+},
+{
+"codigo": "071701",
+"item_lc116": "07.17",
+"descricao": "Escoramento, contenção de encostas e serviços congêneres."
+},
+{
+"codigo": "071801",
+"item_lc116": "07.18",
+"descricao": "Limpeza e dragagem de rios, portos, canais, baías, lagos, lagoas, represas, açudes e congêneres."
+},
+{
+"codigo": "071901",
+"item_lc116": "07.19",
+"descricao": "Acompanhamento e fiscalização da execução de obras de engenharia, arquitetura e urbanismo."
+},
+{
+"codigo": "072001",
+"item_lc116": "07.20",
+"descricao": "Aerofotogrametria (inclusive interpretação), cartografia, mapeamento e congêneres."
+},
+{
+"codigo": "072002",
+"item_lc116": "07.20",
+"descricao": "Levantamentos batimétricos, geográficos, geodésicos, geológicos, geofísicos e congêneres."
+},
+{
+"codigo": "072003",
+"item_lc116": "07.20",
+"descricao": "Levantamentos topográficos e congêneres."
+},
+{
+"codigo": "072101",
+"item_lc116": "07.21",
+"descricao": "Pesquisa, perfuração, cimentação, mergulho, perfilagem, concretação, testemunhagem, pescaria, estimulação e outros serviços relacionados com a exploração e explotação de petróleo, gás natural e de outros recursos minerais."
+},
+{
+"codigo": "072201",
+"item_lc116": "07.22",
+"descricao": "Nucleação e bombardeamento de nuvens e congêneres."
+},
+{
+"codigo": "080101",
+"item_lc116": "08.01",
+"descricao": "Ensino regular pré-escolar, fundamental e médio."
+},
+{
+"codigo": "080102",
+"item_lc116": "08.01",
+"descricao": "Ensino regular superior."
+},
+{
+"codigo": "080201",
+"item_lc116": "08.02",
+"descricao": "Instrução, treinamento, orientação pedagógica e educacional, avaliação de conhecimentos de qualquer natureza."
+},
+{
+"codigo": "090101",
+"item_lc116": "09.01",
+"descricao": "Hospedagem em hotéis, hotelaria marítima e congêneres (o valor da alimentação e gorjeta, quando incluído no preço da diária, fica sujeito ao Imposto Sobre Serviços)."
+},
+{
+"codigo": "090102",
+"item_lc116": "09.01",
+"descricao": "Hospedagem em pensões, albergues, pousadas, hospedarias, ocupação por temporada com fornecimento de serviços e congêneres (o valor da alimentação e gorjeta, quando incluído no preço da diária, fica sujeito ao Imposto Sobre Serviços)."
+},
+{
+"codigo": "090103",
+"item_lc116": "09.01",
+"descricao": "Hospedagem em motéis e congêneres (o valor da alimentação e gorjeta, quando incluído no preço da diária, fica sujeito ao Imposto Sobre Serviços)."
+},
+{
+"codigo": "090104",
+"item_lc116": "09.01",
+"descricao": "Hospedagem em apart-service condominiais, flat, apart-hotéis, hotéis residência, residence-service, suite service e congêneres (o valor da alimentação e gorjeta, quando incluído no preço da diária, fica sujeito ao Imposto Sobre Serviços)."
+},
+{
+"codigo": "090201",
+"item_lc116": "09.02",
+"descricao": "Agenciamento e intermediação de programas de turismo, passeios, viagens, excursões, hospedagens e congêneres."
+},
+{
+"codigo": "090202",
+"item_lc116": "09.02",
+"descricao": "Organização, promoção e execução de programas de turismo, passeios, viagens, excursões, hospedagens e congêneres."
+},
+{
+"codigo": "090301",
+"item_lc116": "09.03",
+"descricao": "Guias de turismo."
+},
+{
+"codigo": "100101",
+"item_lc116": "10.01",
+"descricao": "Agenciamento, corretagem ou intermediação de câmbio."
+},
+{
+"codigo": "100102",
+"item_lc116": "10.01",
+"descricao": "Agenciamento, corretagem ou intermediação de seguros."
+},
+{
+"codigo": "100103",
+"item_lc116": "10.01",
+"descricao": "Agenciamento, corretagem ou intermediação de cartões de crédito."
+},
+{
+"codigo": "100104",
+"item_lc116": "10.01",
+"descricao": "Agenciamento, corretagem ou intermediação de planos de saúde."
+},
+{
+"codigo": "100105",
+"item_lc116": "10.01",
+"descricao": "Agenciamento, corretagem ou intermediação de planos de previdência privada."
+},
+{
+"codigo": "100201",
+"item_lc116": "10.02",
+"descricao": "Agenciamento, corretagem ou intermediação de títulos em geral e valores mobiliários."
+},
+{
+"codigo": "100202",
+"item_lc116": "10.02",
+"descricao": "Agenciamento, corretagem ou intermediação de contratos quaisquer."
+},
+{
+"codigo": "100301",
+"item_lc116": "10.03",
+"descricao": "Agenciamento, corretagem ou intermediação de direitos de propriedade industrial, artística ou literária."
+},
+{
+"codigo": "100401",
+"item_lc116": "10.04",
+"descricao": "Agenciamento, corretagem ou intermediação de contratos de arrendamento mercantil (leasing)."
+},
+{
+"codigo": "100402",
+"item_lc116": "10.04",
+"descricao": "Agenciamento, corretagem ou intermediação de contratos de franquia (franchising)."
+},
+{
+"codigo": "100403",
+"item_lc116": "10.04",
+"descricao": "Agenciamento, corretagem ou intermediação de faturização (factoring)."
+},
+{
+"codigo": "100501",
+"item_lc116": "10.05",
+"descricao": "Agenciamento, corretagem ou intermediação de bens móveis ou imóveis, não abrangidos em outros itens ou subitens, por quaisquer meios."
+},
+{
+"codigo": "100502",
+"item_lc116": "10.05",
+"descricao": "Agenciamento, corretagem ou intermediação de bens móveis ou imóveis realizados no âmbito de Bolsas de Mercadorias e Futuros, por quaisquer meios."
+},
+{
+"codigo": "100601",
+"item_lc116": "10.06",
+"descricao": "Agenciamento marítimo."
+},
+{
+"codigo": "100701",
+"item_lc116": "10.07",
+"descricao": "Agenciamento de notícias."
+},
+{
+"codigo": "100801",
+"item_lc116": "10.08",
+"descricao": "Agenciamento de publicidade e propaganda, inclusive o agenciamento de veiculação por quaisquer meios."
+},
+{
+"codigo": "100901",
+"item_lc116": "10.09",
+"descricao": "Representação de qualquer natureza, inclusive comercial."
+},
+{
+"codigo": "101001",
+"item_lc116": "10.10",
+"descricao": "Distribuição de bens de terceiros."
+},
+{
+"codigo": "110101",
+"item_lc116": "11.01",
+"descricao": "Guarda e estacionamento de veículos terrestres automotores."
+},
+{
+"codigo": "110102",
+"item_lc116": "11.01",
+"descricao": "Guarda e estacionamento de aeronaves e de embarcações."
+},
+{
+"codigo": "110201",
+"item_lc116": "11.02",
+"descricao": "Vigilância, segurança ou monitoramento de bens, pessoas e semoventes."
+},
+{
+"codigo": "110301",
+"item_lc116": "11.03",
+"descricao": "Escolta, inclusive de veículos e cargas."
+},
+{
+"codigo": "110401",
+"item_lc116": "11.04",
+"descricao": "Armazenamento, depósito, guarda de bens de qualquer espécie."
+},
+{
+"codigo": "110402",
+"item_lc116": "11.04",
+"descricao": "Carga, descarga, arrumação de bens de qualquer espécie."
+},
+{
+"codigo": "110501",
+"item_lc116": "11.05",
+"descricao": "Serviços relacionados ao monitoramento e rastreamento a distância, em qualquer via ou local, de veículos, cargas, pessoas e semoventes em circulação ou movimento, realizados por meio de telefonia móvel, transmissão de satélites, rádio ou qualquer outro meio, inclusive pelas empresas de Tecnologia da Informação Veicular, independentemente de o prestador de serviços ser proprietário ou não da infraestrutura de telecomunicações que utiliza."
+},
+{
+"codigo": "120101",
+"item_lc116": "12.01",
+"descricao": "Espetáculos teatrais."
+},
+{
+"codigo": "120201",
+"item_lc116": "12.02",
+"descricao": "Exibições cinematográficas."
+},
+{
+"codigo": "120301",
+"item_lc116": "12.03",
+"descricao": "Espetáculos circenses."
+},
+{
+"codigo": "120401",
+"item_lc116": "12.04",
+"descricao": "Programas de auditório."
+},
+{
+"codigo": "120501",
+"item_lc116": "12.05",
+"descricao": "Parques de diversões, centros de lazer e congêneres."
+},
+{
+"codigo": "120601",
+"item_lc116": "12.06",
+"descricao": "Boates, taxi-dancing e congêneres."
+},
+{
+"codigo": "120701",
+"item_lc116": "12.07",
+"descricao": "Shows, ballet, danças, desfiles, bailes, óperas, concertos, recitais, festivais e congêneres."
+},
+{
+"codigo": "120801",
+"item_lc116": "12.08",
+"descricao": "Feiras, exposições, congressos e congêneres."
+},
+{
+"codigo": "120901",
+"item_lc116": "12.09",
+"descricao": "Bilhares."
+},
+{
+"codigo": "120902",
+"item_lc116": "12.09",
+"descricao": "Boliches."
+},
+{
+"codigo": "120903",
+"item_lc116": "12.09",
+"descricao": "Diversões eletrônicas ou não."
+},
+{
+"codigo": "121001",
+"item_lc116": "12.10",
+"descricao": "Corridas e competições de animais."
+},
+{
+"codigo": "121101",
+"item_lc116": "12.11",
+"descricao": "Competições esportivas ou de destreza física ou intelectual, com ou sem a participação do espectador."
+},
+{
+"codigo": "121201",
+"item_lc116": "12.12",
+"descricao": "Execução de música."
+},
+{
+"codigo": "121301",
+"item_lc116": "12.13",
+"descricao": "Produção, mediante ou sem encomenda prévia, de eventos, espetáculos, entrevistas, shows, ballet, danças, desfiles, bailes, teatros, óperas, concertos, recitais, festivais e congêneres."
+},
+{
+"codigo": "121401",
+"item_lc116": "12.14",
+"descricao": "Fornecimento de música para ambientes fechados ou não, mediante transmissão por qualquer processo."
+},
+{
+"codigo": "121501",
+"item_lc116": "12.15",
+"descricao": "Desfiles de blocos carnavalescos ou folclóricos, trios elétricos e congêneres."
+},
+{
+"codigo": "121601",
+"item_lc116": "12.16",
+"descricao": "Exibição de filmes, entrevistas, musicais, espetáculos, shows, concertos, desfiles, óperas, competições esportivas, de destreza intelectual ou congêneres."
+},
+{
+"codigo": "121701",
+"item_lc116": "12.17",
+"descricao": "Recreação e animação, inclusive em festas e eventos de qualquer natureza."
+},
+{
+"codigo": "130201",
+"item_lc116": "13.02",
+"descricao": "Fonografia ou gravação de sons, inclusive trucagem, dublagem, mixagem e congêneres."
+},
+{
+"codigo": "130301",
+"item_lc116": "13.03",
+"descricao": "Fotografia e cinematografia, inclusive revelação, ampliação, cópia, reprodução, trucagem e congêneres."
+},
+{
+"codigo": "130401",
+"item_lc116": "13.04",
+"descricao": "Reprografia, microfilmagem e digitalização."
+},
+{
+"codigo": "130501",
+"item_lc116": "13.05",
+"descricao": "Composição gráfica, inclusive confecção de impressos gráficos, fotocomposição, clicheria, zincografia, litografia e fotolitografia, exceto se destinados a posterior operação de comercialização ou industrialização, ainda que incorporados, de qualquer forma, a outra mercadoria que deva ser objeto de posterior circulação, tais como bulas, rótulos, etiquetas, caixas, cartuchos, embalagens e manuais técnicos e de instrução, quando ficarão sujeitos ao ICMS."
+},
+{
+"codigo": "140101",
+"item_lc116": "14.01",
+"descricao": "Lubrificação, limpeza, lustração, revisão, carga e recarga, conserto, restauração, blindagem, manutenção e conservação de máquinas, veículos, aparelhos, equipamentos, motores, elevadores ou de qualquer objeto (exceto peças e partes empregadas, que ficam sujeitas ao ICMS)."
+},
+{
+"codigo": "140201",
+"item_lc116": "14.02",
+"descricao": "Assistência técnica."
+},
+{
+"codigo": "140301",
+"item_lc116": "14.03",
+"descricao": "Recondicionamento de motores (exceto peças e partes empregadas, que ficam sujeitas ao ICMS)."
+},
+{
+"codigo": "140401",
+"item_lc116": "14.04",
+"descricao": "Recauchutagem ou regeneração de pneus."
+},
+{
+"codigo": "140501",
+"item_lc116": "14.05",
+"descricao": "Restauração, recondicionamento, acondicionamento, pintura, beneficiamento, lavagem, secagem, tingimento, galvanoplastia, anodização, corte, recorte, plastificação, costura, acabamento, polimento e congêneres de objetos quaisquer."
+},
+{
+"codigo": "140601",
+"item_lc116": "14.06",
+"descricao": "Instalação e montagem de aparelhos, máquinas e equipamentos, inclusive montagem industrial, prestados ao usuário final, exclusivamente com material por ele fornecido."
+},
+{
+"codigo": "140701",
+"item_lc116": "14.07",
+"descricao": "Colocação de molduras e congêneres."
+},
+{
+"codigo": "140801",
+"item_lc116": "14.08",
+"descricao": "Encadernação, gravação e douração de livros, revistas e congêneres."
+},
+{
+"codigo": "140901",
+"item_lc116": "14.09",
+"descricao": "Alfaiataria e costura, quando o material for fornecido pelo usuário final, exceto aviamento."
+},
+{
+"codigo": "141001",
+"item_lc116": "14.10",
+"descricao": "Tinturaria e lavanderia."
+},
+{
+"codigo": "141101",
+"item_lc116": "14.11",
+"descricao": "Tapeçaria e reforma de estofamentos em geral."
+},
+{
+"codigo": "141201",
+"item_lc116": "14.12",
+"descricao": "Funilaria e lanternagem."
+},
+{
+"codigo": "141301",
+"item_lc116": "14.13",
+"descricao": "Carpintaria."
+},
+{
+"codigo": "141302",
+"item_lc116": "14.13",
+"descricao": "Serralheria."
+},
+{
+"codigo": "141401",
+"item_lc116": "14.14",
+"descricao": "Guincho intramunicipal."
+},
+{
+"codigo": "141402",
+"item_lc116": "14.14",
+"descricao": "Guindaste e içamento."
+},
+{
+"codigo": "141403",
+"item_lc116": "14.14",
+"descricao": "Guincho intramunicipal em construção civil."
+},
+{
+"codigo": "141404",
+"item_lc116": "14.14",
+"descricao": "Guindaste e içamento em construção civil."
+},
+{
+"codigo": "150101",
+"item_lc116": "15.01",
+"descricao": "Administração de fundos quaisquer e congêneres."
+},
+{
+"codigo": "150102",
+"item_lc116": "15.01",
+"descricao": "Administração de consórcio e congêneres."
+},
+{
+"codigo": "150103",
+"item_lc116": "15.01",
+"descricao": "Administração de cartão de crédito ou débito e congêneres."
+},
+{
+"codigo": "150104",
+"item_lc116": "15.01",
+"descricao": "Administração de carteira de clientes e congêneres."
+},
+{
+"codigo": "150105",
+"item_lc116": "15.01",
+"descricao": "Administração de cheques pré-datados e congêneres."
+},
+{
+"codigo": "150201",
+"item_lc116": "15.02",
+"descricao": "Abertura de conta-corrente no País, bem como a manutenção da referida conta ativa e inativa."
+},
+{
+"codigo": "150202",
+"item_lc116": "15.02",
+"descricao": "Abertura de conta-corrente no exterior, bem como a manutenção da referida conta ativa e inativa."
+},
+{
+"codigo": "150203",
+"item_lc116": "15.02",
+"descricao": "Abertura de conta de investimentos e aplicação no País, bem como a manutenção da referida conta ativa e inativa."
+},
+{
+"codigo": "150204",
+"item_lc116": "15.02",
+"descricao": "Abertura de conta de investimentos e aplicação no exterior, bem como a manutenção da referida conta ativa e inativa."
+},
+{
+"codigo": "150205",
+"item_lc116": "15.02",
+"descricao": "Abertura de caderneta de poupança no País, bem como a manutenção da referida conta ativa e inativa."
+},
+{
+"codigo": "150206",
+"item_lc116": "15.02",
+"descricao": "Abertura de caderneta de poupança no exterior, bem como a manutenção da referida conta ativa e inativa."
+},
+{
+"codigo": "150207",
+"item_lc116": "15.02",
+"descricao": "Abertura de contas em geral no País, não abrangida em outro subitem, bem como a manutenção das referidas contas ativas e inativas."
+},
+{
+"codigo": "150208",
+"item_lc116": "15.02",
+"descricao": "Abertura de contas em geral no exterior, não abrangida em outro subitem, bem como a manutenção das referidas contas ativas e inativas."
+},
+{
+"codigo": "150301",
+"item_lc116": "15.03",
+"descricao": "Locação de cofres particulares."
+},
+{
+"codigo": "150302",
+"item_lc116": "15.03",
+"descricao": "Manutenção de cofres particulares."
+},
+{
+"codigo": "150303",
+"item_lc116": "15.03",
+"descricao": "Locação de terminais eletrônicos."
+},
+{
+"codigo": "150304",
+"item_lc116": "15.03",
+"descricao": "Manutenção de terminais eletrônicos."
+},
+{
+"codigo": "150305",
+"item_lc116": "15.03",
+"descricao": "Locação de terminais de atendimento."
+},
+{
+"codigo": "150306",
+"item_lc116": "15.03",
+"descricao": "Manutenção de terminais de atendimento."
+},
+{
+"codigo": "150307",
+"item_lc116": "15.03",
+"descricao": "Locação de bens e equipamentos em geral."
+},
+{
+"codigo": "150308",
+"item_lc116": "15.03",
+"descricao": "Manutenção de bens e equipamentos em geral."
+},
+{
+"codigo": "150401",
+"item_lc116": "15.04",
+"descricao": "Fornecimento ou emissão de atestados em geral, inclusive atestado de idoneidade, atestado de capacidade financeira e congêneres."
+},
+{
+"codigo": "150501",
+"item_lc116": "15.05",
+"descricao": "Cadastro, elaboração de ficha cadastral, renovação cadastral e congêneres."
+},
+{
+"codigo": "150502",
+"item_lc116": "15.05",
+"descricao": "Inclusão no Cadastro de Emitentes de Cheques sem Fundos - CCF."
+},
+{
+"codigo": "150503",
+"item_lc116": "15.05",
+"descricao": "Exclusão no Cadastro de Emitentes de Cheques sem Fundos - CCF."
+},
+{
+"codigo": "150504",
+"item_lc116": "15.05",
+"descricao": "Inclusão em quaisquer outros bancos cadastrais."
+},
+{
+"codigo": "150505",
+"item_lc116": "15.05",
+"descricao": "Exclusão em quaisquer outros bancos cadastrais."
+},
+{
+"codigo": "150601",
+"item_lc116": "15.06",
+"descricao": "Emissão, reemissão e fornecimento de avisos, comprovantes e documentos em geral"
+},
+{
+"codigo": "150602",
+"item_lc116": "15.06",
+"descricao": "Abono de firmas."
+},
+{
+"codigo": "150603",
+"item_lc116": "15.06",
+"descricao": "Coleta e entrega de documentos, bens e valores."
+},
+{
+"codigo": "150604",
+"item_lc116": "15.06",
+"descricao": "Comunicação com outra agência ou com a administração central."
+},
+{
+"codigo": "150605",
+"item_lc116": "15.06",
+"descricao": "Licenciamento eletrônico de veículos."
+},
+{
+"codigo": "150606",
+"item_lc116": "15.06",
+"descricao": "Transferência de veículos."
+},
+{
+"codigo": "150607",
+"item_lc116": "15.06",
+"descricao": "Agenciamento fiduciário ou depositário."
+},
+{
+"codigo": "150608",
+"item_lc116": "15.06",
+"descricao": "Devolução de bens em custódia."
+},
+{
+"codigo": "150701",
+"item_lc116": "15.07",
+"descricao": "Acesso, movimentação, atendimento e consulta a contas em geral, por qualquer meio ou processo, inclusive por telefone, fac-símile, internet e telex."
+},
+{
+"codigo": "150702",
+"item_lc116": "15.07",
+"descricao": "Acesso a terminais de atendimento, inclusive vinte e quatro horas."
+},
+{
+"codigo": "150703",
+"item_lc116": "15.07",
+"descricao": "Acesso a outro banco e à rede compartilhada."
+},
+{
+"codigo": "150704",
+"item_lc116": "15.07",
+"descricao": "Fornecimento de saldo, extrato e demais informações relativas a contas em geral, por qualquer meio ou processo."
+},
+{
+"codigo": "150801",
+"item_lc116": "15.08",
+"descricao": "Emissão, reemissão, alteração, cessão, substituição, cancelamento e registro de contrato de crédito."
+},
+{
+"codigo": "150802",
+"item_lc116": "15.08",
+"descricao": "Estudo, análise e avaliação de operações de crédito."
+},
+{
+"codigo": "150803",
+"item_lc116": "15.08",
+"descricao": "Emissão, concessão, alteração ou contratação de aval, fiança, anuência e congêneres."
+},
+{
+"codigo": "150804",
+"item_lc116": "15.08",
+"descricao": "Serviços relativos à abertura de crédito, para quaisquer fins."
+},
+{
+"codigo": "150901",
+"item_lc116": "15.09",
+"descricao": "Arrendamento mercantil (leasing) de quaisquer bens, inclusive cessão de direitos e obrigações, substituição de garantia, alteração, cancelamento e registro de contrato, e demais serviços relacionados ao arrendamento mercantil (leasing)."
+},
+{
+"codigo": "151001",
+"item_lc116": "15.10",
+"descricao": "Serviços relacionados a cobranças em geral, de títulos quaisquer, de contas ou carnês, de câmbio, de tributos e por conta de terceiros, inclusive os efetuados por meio eletrônico, automático ou por máquinas de atendimento."
+},
+{
+"codigo": "151002",
+"item_lc116": "15.10",
+"descricao": "Serviços relacionados a recebimentos em geral, de títulos quaisquer, de contas ou carnês, de câmbio, de tributos e por conta de terceiros, inclusive os efetuados por meio eletrônico, automático ou por máquinas de atendimento."
+},
+{
+"codigo": "151003",
+"item_lc116": "15.10",
+"descricao": "Serviços relacionados a pagamentos em geral, de títulos quaisquer, de contas ou carnês, de câmbio, de tributos e por conta de terceiros, inclusive os efetuados por meio eletrônico, automático ou por máquinas de atendimento."
+},
+{
+"codigo": "151004",
+"item_lc116": "15.10",
+"descricao": "Serviços relacionados a fornecimento de posição de cobrança, recebimento ou pagamento."
+},
+{
+"codigo": "151005",
+"item_lc116": "15.10",
+"descricao": "Serviços relacionados a emissão de carnês, fichas de compensação, impressos e documentos em geral."
+},
+{
+"codigo": "151101",
+"item_lc116": "15.11",
+"descricao": "Devolução de títulos, protesto de títulos, sustação de protesto, manutenção de títulos, reapresentação de títulos, e demais serviços a eles relacionados."
+},
+{
+"codigo": "151201",
+"item_lc116": "15.12",
+"descricao": "Custódia em geral, inclusive de títulos e valores mobiliários."
+},
+{
+"codigo": "151301",
+"item_lc116": "15.13",
+"descricao": "Serviços relacionados a operações de câmbio em geral, edição, alteração, prorrogação, cancelamento e baixa de contrato de câmbio."
+},
+{
+"codigo": "151302",
+"item_lc116": "15.13",
+"descricao": "Serviços relacionados a emissão de registro de exportação ou de crédito."
+},
+{
+"codigo": "151303",
+"item_lc116": "15.13",
+"descricao": "Serviços relacionados a cobrança ou depósito no exterior."
+},
+{
+"codigo": "151304",
+"item_lc116": "15.13",
+"descricao": "Serviços relacionados a emissão, fornecimento e cancelamento de cheques de viagem."
+},
+{
+"codigo": "151305",
+"item_lc116": "15.13",
+"descricao": "Serviços relacionados a fornecimento, transferência, cancelamento e demais serviços relativos a carta de crédito de importação, exportação e garantias recebidas."
+},
+{
+"codigo": "151306",
+"item_lc116": "15.13",
+"descricao": "Serviços relacionados a envio e recebimento de mensagens em geral relacionadas a operações de câmbio."
+},
+{
+"codigo": "151401",
+"item_lc116": "15.14",
+"descricao": "Fornecimento, emissão, reemissão de cartão magnético, cartão de crédito, cartão de débito, cartão salário e congêneres."
+},
+{
+"codigo": "151402",
+"item_lc116": "15.14",
+"descricao": "Renovação de cartão magnético, cartão de crédito, cartão de débito, cartão salário e congêneres."
+},
+{
+"codigo": "151403",
+"item_lc116": "15.14",
+"descricao": "Manutenção de cartão magnético, cartão de crédito, cartão de débito, cartão salário e congêneres."
+},
+{
+"codigo": "151501",
+"item_lc116": "15.15",
+"descricao": "Compensação de cheques e títulos quaisquer."
+},
+{
+"codigo": "151502",
+"item_lc116": "15.15",
+"descricao": "Serviços relacionados a depósito, inclusive depósito identificado, a saque de contas quaisquer, por qualquer meio ou processo, inclusive em terminais eletrônicos e de atendimento."
+},
+{
+"codigo": "151601",
+"item_lc116": "15.16",
+"descricao": "Emissão, reemissão, liquidação, alteração, cancelamento e baixa de ordens de pagamento, ordens de crédito e similares, por qualquer meio ou processo."
+},
+{
+"codigo": "151602",
+"item_lc116": "15.16",
+"descricao": "Serviços relacionados à transferência de valores, dados, fundos, pagamentos e similares, inclusive entre contas em geral."
+},
+{
+"codigo": "151701",
+"item_lc116": "15.17",
+"descricao": "Emissão e fornecimento de cheques quaisquer, avulso ou por talão."
+},
+{
+"codigo": "151702",
+"item_lc116": "15.17",
+"descricao": "Devolução de cheques quaisquer, avulso ou por talão."
+},
+{
+"codigo": "151703",
+"item_lc116": "15.17",
+"descricao": "Sustação, cancelamento e oposição de cheques quaisquer, avulso ou por talão."
+},
+{
+"codigo": "151801",
+"item_lc116": "15.18",
+"descricao": "Serviços relacionados a crédito imobiliário, de avaliação e vistoria de imóvel ou obra."
+},
+{
+"codigo": "151802",
+"item_lc116": "15.18",
+"descricao": "Serviços relacionados a crédito imobiliário, de análise técnica e jurídica."
+},
+{
+"codigo": "151803",
+"item_lc116": "15.18",
+"descricao": "Serviços relacionados a crédito imobiliário, de emissão, reemissão, alteração, transferência e renegociação de contrato."
+},
+{
+"codigo": "151804",
+"item_lc116": "15.18",
+"descricao": "Serviços relacionados a crédito imobiliário, de emissão e reemissão do termo de quitação."
+},
+{
+"codigo": "151805",
+"item_lc116": "15.18",
+"descricao": "Demais serviços relacionados a crédito imobiliário."
+},
+{
+"codigo": "160101",
+"item_lc116": "16.01",
+"descricao": "Serviços de transporte coletivo municipal rodoviário de passageiros."
+},
+{
+"codigo": "160102",
+"item_lc116": "16.01",
+"descricao": "Serviços de transporte coletivo municipal metroviário de passageiros."
+},
+{
+"codigo": "160103",
+"item_lc116": "16.01",
+"descricao": "Serviços de transporte coletivo municipal ferroviário de passageiros."
+},
+{
+"codigo": "160104",
+"item_lc116": "16.01",
+"descricao": "Serviços de transporte coletivo municipal aquaviário de passageiros."
+},
+{
+"codigo": "160201",
+"item_lc116": "16.02",
+"descricao": "Outros serviços de transporte de natureza municipal."
+},
+{
+"codigo": "170101",
+"item_lc116": "17.01",
+"descricao": "Assessoria ou consultoria de qualquer natureza, não contida em outros itens desta lista."
+},
+{
+"codigo": "170102",
+"item_lc116": "17.01",
+"descricao": "Análise, exame, pesquisa, coleta, compilação e fornecimento de dados e informações de qualquer natureza, inclusive cadastro e similares."
+},
+{
+"codigo": "170201",
+"item_lc116": "17.02",
+"descricao": "Datilografia, digitação, estenografia e congêneres."
+},
+{
+"codigo": "170202",
+"item_lc116": "17.02",
+"descricao": "Expediente, secretaria em geral, apoio e infra-estrutura administrativa e congêneres."
+},
+{
+"codigo": "170203",
+"item_lc116": "17.02",
+"descricao": "Resposta audível e congêneres."
+},
+{
+"codigo": "170204",
+"item_lc116": "17.02",
+"descricao": "Redação, edição, revisão e congêneres."
+},
+{
+"codigo": "170205",
+"item_lc116": "17.02",
+"descricao": "Interpretação, tradução e congêneres."
+},
+{
+"codigo": "170301",
+"item_lc116": "17.03",
+"descricao": "Planejamento, coordenação, programação ou organização técnica."
+},
+{
+"codigo": "170302",
+"item_lc116": "17.03",
+"descricao": "Planejamento, coordenação, programação ou organização financeira."
+},
+{
+"codigo": "170303",
+"item_lc116": "17.03",
+"descricao": "Planejamento, coordenação, programação ou organização administrativa."
+},
+{
+"codigo": "170401",
+"item_lc116": "17.04",
+"descricao": "Recrutamento, agenciamento, seleção e colocação de mão-de-obra."
+},
+{
+"codigo": "170501",
+"item_lc116": "17.05",
+"descricao": "Fornecimento de mão-de-obra, mesmo em caráter temporário, inclusive de empregados ou trabalhadores, avulsos ou temporários, contratados pelo prestador de serviço."
+},
+{
+"codigo": "170601",
+"item_lc116": "17.06",
+"descricao": "Propaganda e publicidade, inclusive promoção de vendas, planejamento de campanhas ou sistemas de publicidade, elaboração de desenhos, textos e demais materiais publicitários."
+},
+{
+"codigo": "170801",
+"item_lc116": "17.08",
+"descricao": "Franquia (franchising)."
+},
+{
+"codigo": "170901",
+"item_lc116": "17.09",
+"descricao": "Perícias, laudos, exames técnicos e análises técnicas."
+},
+{
+"codigo": "171001",
+"item_lc116": "17.10",
+"descricao": "Planejamento, organização e administração de feiras, exposições, e congêneres."
+},
+{
+"codigo": "171002",
+"item_lc116": "17.10",
+"descricao": "Planejamento, organização e administração de congressos e congêneres."
+},
+{
+"codigo": "171101",
+"item_lc116": "17.11",
+"descricao": "Organização de festas e recepções."
+},
+{
+"codigo": "171102",
+"item_lc116": "17.11",
+"descricao": "Bufê (exceto o fornecimento de alimentação e bebidas, que fica sujeito ao ICMS)."
+},
+{
+"codigo": "171201",
+"item_lc116": "17.12",
+"descricao": "Administração em geral, inclusive de bens e negócios de terceiros."
+},
+{
+"codigo": "171301",
+"item_lc116": "17.13",
+"descricao": "Leilão e congêneres."
+},
+{
+"codigo": "171401",
+"item_lc116": "17.14",
+"descricao": "Advocacia"
+},
+{
+"codigo": "171501",
+"item_lc116": "17.15",
+"descricao": "Arbitragem de qualquer espécie, inclusive jurídica."
+},
+{
+"codigo": "171601",
+"item_lc116": "17.16",
+"descricao": "Auditoria."
+},
+{
+"codigo": "171701",
+"item_lc116": "17.17",
+"descricao": "Análise de Organização e Métodos."
+},
+{
+"codigo": "171801",
+"item_lc116": "17.18",
+"descricao": "Atuária e cálculos técnicos de qualquer natureza."
+},
+{
+"codigo": "171901",
+"item_lc116": "17.19",
+"descricao": "Contabilidade, inclusive serviços técnicos e auxiliares."
+},
+{
+"codigo": "172001",
+"item_lc116": "17.20",
+"descricao": "Consultoria e assessoria econômica ou financeira."
+},
+{
+"codigo": "172101",
+"item_lc116": "17.21",
+"descricao": "Estatística."
+},
+{
+"codigo": "172201",
+"item_lc116": "17.22",
+"descricao": "Cobrança em geral."
+},
+{
+"codigo": "172301",
+"item_lc116": "17.23",
+"descricao": "Assessoria, análise, avaliação, atendimento, consulta, cadastro, seleção, gerenciamento de informações, administração de contas a receber ou a pagar e em geral, relacionados a operações de faturização (factoring)."
+},
+{
+"codigo": "172401",
+"item_lc116": "17.24",
+"descricao": "Apresentação de palestras, conferências, seminários e congêneres."
+},
+{
+"codigo": "172501",
+"item_lc116": "17.25",
+"descricao": "Inserção de textos, desenhos e outros materiais de propaganda e publicidade, em qualquer meio (exceto em livros, jornais, periódicos e nas modalidades de serviços de radiodifusão sonora e de sons e imagens de recepção livre e gratuita)."
+},
+{
+"codigo": "180101",
+"item_lc116": "18.01",
+"descricao": "Serviços de regulação de sinistros vinculados a contratos de seguros e congêneres."
+},
+{
+"codigo": "180102",
+"item_lc116": "18.01",
+"descricao": "Serviços de inspeção e avaliação de riscos para cobertura de contratos de seguros e congêneres."
+},
+{
+"codigo": "180103",
+"item_lc116": "18.01",
+"descricao": "Serviços de prevenção e gerência de riscos seguráveis e congêneres."
+},
+{
+"codigo": "190101",
+"item_lc116": "19.01",
+"descricao": "Serviços de distribuição e venda de bilhetes e demais produtos de loteria, cartões, pules ou cupons de apostas, sorteios, prêmios, inclusive os decorrentes de títulos de capitalização e congêneres."
+},
+{
+"codigo": "190102",
+"item_lc116": "19.01",
+"descricao": "Serviços de distribuição e venda de bingos e congêneres."
+},
+{
+"codigo": "200101",
+"item_lc116": "20.01",
+"descricao": "Serviços portuários, ferroportuários, utilização de porto, movimentação de passageiros, reboque de embarcações, rebocador escoteiro, atracação, desatracação, serviços de praticagem, capatazia, armazenagem de qualquer natureza, serviços acessórios, movimentação de mercadorias, serviços de apoio marítimo, de movimentação ao largo, serviços de armadores, estiva, conferência, logística e congêneres. (prestado em terra)"
+},
+{
+"codigo": "200102",
+"item_lc116": "20.01",
+"descricao": "Serviços portuários, ferroportuários, utilização de porto, movimentação de passageiros, reboque de embarcações, rebocador escoteiro, atracação, desatracação, serviços de praticagem, capatazia, armazenagem de qualquer natureza, serviços acessórios, movimentação de mercadorias, serviços de apoio marítimo, de movimentação ao largo, serviços de armadores, estiva, conferência, logística e congêneres. (prestado em águas marinhas)"
+},
+{
+"codigo": "200201",
+"item_lc116": "20.02",
+"descricao": "Serviços aeroportuários, utilização de aeroporto, movimentação de passageiros, armazenagem de qualquer natureza, capatazia, movimentação de aeronaves, serviços de apoio aeroportuários, serviços acessórios, movimentação de mercadorias, logística e congêneres."
+},
+{
+"codigo": "200301",
+"item_lc116": "20.03",
+"descricao": "Serviços de terminais rodoviários, ferroviários, metroviários, movimentação de passageiros, mercadorias, inclusive suas operações, logística e congêneres."
+},
+{
+"codigo": "210101",
+"item_lc116": "21.01",
+"descricao": "Serviços de registros públicos, cartorários e notariais."
+},
+{
+"codigo": "220101",
+"item_lc116": "22.01",
+"descricao": "Serviços de exploração de rodovia mediante cobrança de preço ou pedágio dos usuários, envolvendo execução de serviços de conservação, manutenção, melhoramentos para adequação de capacidade e segurança de trânsito, operação, monitoração, assistência aos usuários e outros serviços definidos em contratos, atos de concessão ou de permissão ou em normas oficiais."
+},
+{
+"codigo": "230101",
+"item_lc116": "23.01",
+"descricao": "Serviços de programação e comunicação visual e congêneres."
+},
+{
+"codigo": "230102",
+"item_lc116": "23.01",
+"descricao": "Serviços de desenho industrial e congêneres."
+},
+{
+"codigo": "240101",
+"item_lc116": "24.01",
+"descricao": "Serviços de chaveiros, confecção de carimbos e congêneres."
+},
+{
+"codigo": "240102",
+"item_lc116": "24.01",
+"descricao": "Serviços de placas, sinalização visual, banners, adesivos e congêneres."
+},
+{
+"codigo": "250101",
+"item_lc116": "25.01",
+"descricao": "Funerais, inclusive fornecimento de caixão, urna ou esquifes; aluguel de capela; transporte do corpo cadavérico; fornecimento de flores, coroas e outros paramentos; desembaraço de certidão de óbito; fornecimento de véu, essa e outros adornos; embalsamento, embelezamento, conservação ou restauração de cadáveres."
+},
+{
+"codigo": "250201",
+"item_lc116": "25.02",
+"descricao": "Translado intramunicipal de corpos e partes de corpos cadavéricos."
+},
+{
+"codigo": "250202",
+"item_lc116": "25.02",
+"descricao": "Cremação de corpos e partes de corpos cadavéricos."
+},
+{
+"codigo": "250301",
+"item_lc116": "25.03",
+"descricao": "Planos ou convênio funerários."
+},
+{
+"codigo": "250401",
+"item_lc116": "25.04",
+"descricao": "Manutenção e conservação de jazigos e cemitérios."
+},
+{
+"codigo": "250501",
+"item_lc116": "25.05",
+"descricao": "Cessão de uso de espaços em cemitérios para sepultamento."
+},
+{
+"codigo": "260101",
+"item_lc116": "26.01",
+"descricao": "Serviços de coleta, remessa ou entrega de correspondências, documentos, objetos, bens ou valores, inclusive pelos correios e suas agências franqueadas."
+},
+{
+"codigo": "260102",
+"item_lc116": "26.01",
+"descricao": "Serviços de courrier e congêneres."
+},
+{
+"codigo": "270101",
+"item_lc116": "27.01",
+"descricao": "Serviços de assistência social."
+},
+{
+"codigo": "280101",
+"item_lc116": "28.01",
+"descricao": "Serviços de avaliação de bens e serviços de qualquer natureza."
+},
+{
+"codigo": "290101",
+"item_lc116": "29.01",
+"descricao": "Serviços de biblioteconomia."
+},
+{
+"codigo": "300101",
+"item_lc116": "30.01",
+"descricao": "Serviços de biologia e biotecnologia."
+},
+{
+"codigo": "300102",
+"item_lc116": "30.01",
+"descricao": "Serviços de química."
+},
+{
+"codigo": "310101",
+"item_lc116": "31.01",
+"descricao": "Serviços técnicos em edificações e congêneres."
+},
+{
+"codigo": "310102",
+"item_lc116": "31.01",
+"descricao": "Serviços técnicos em eletrônica, eletrotécnica e congêneres."
+},
+{
+"codigo": "310103",
+"item_lc116": "31.01",
+"descricao": "Serviços técnicos em mecânica e congêneres."
+},
+{
+"codigo": "310104",
+"item_lc116": "31.01",
+"descricao": "Serviços técnicos em telecomunicações e congêneres."
+},
+{
+"codigo": "320101",
+"item_lc116": "32.01",
+"descricao": "Serviços de desenhos técnicos."
+},
+{
+"codigo": "330101",
+"item_lc116": "33.01",
+"descricao": "Serviços de desembaraço aduaneiro, comissários, despachantes e congêneres."
+},
+{
+"codigo": "340101",
+"item_lc116": "34.01",
+"descricao": "Serviços de investigações particulares, detetives e congêneres."
+},
+{
+"codigo": "350101",
+"item_lc116": "35.01",
+"descricao": "Serviços de reportagem e jornalismo."
+},
+{
+"codigo": "350102",
+"item_lc116": "35.01",
+"descricao": "Serviços de assessoria de imprensa."
+},
+{
+"codigo": "350103",
+"item_lc116": "35.01",
+"descricao": "Serviços de relações públicas."
+},
+{
+"codigo": "360101",
+"item_lc116": "36.01",
+"descricao": "Serviços de meteorologia."
+},
+{
+"codigo": "370101",
+"item_lc116": "37.01",
+"descricao": "Serviços de artistas, atletas, modelos e manequins."
+},
+{
+"codigo": "380101",
+"item_lc116": "38.01",
+"descricao": "Serviços de museologia."
+},
+{
+"codigo": "390101",
+"item_lc116": "39.01",
+"descricao": "Serviços de ourivesaria e lapidação (quando o material for fornecido pelo tomador do serviço)."
+},
+{
+"codigo": "400101",
+"item_lc116": "40.01",
+"descricao": "Obras de arte sob encomenda."
+},
+{
+"codigo": "990101",
+"item_lc116": "99.01",
+"descricao": "Serviços sem a incidência de ISSQN e ICMS"
+}
+]
+}

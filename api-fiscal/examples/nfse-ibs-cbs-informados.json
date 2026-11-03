@@ -1,0 +1,18 @@
+{
+  "competencia": "2026-11-02",
+  "servico": {
+    "codigo_tributacao_nacional": "140101",
+    "nbs": "115021000",
+    "descricao": "Serviço de exemplo com classificação IBS/CBS informada"
+  },
+  "valores": { "servico": "100.00" },
+  "ibs_cbs": {
+    "finalidade": 0,
+    "consumidor_final": 1,
+    "indicador_operacao": "100301",
+    "indicador_destinatario": 0,
+    "cst": "000",
+    "classificacao_tributaria": "000001"
+  },
+  "pedido_id": "exemplo-ibs-cbs-0001"
+}

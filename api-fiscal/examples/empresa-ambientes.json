@@ -1,0 +1,7 @@
+{
+  "nome": "Empresa de exemplo",
+  "ativa": true,
+  "ambiente_nfe": 1,
+  "ambiente_nfce": 2,
+  "ambiente_nfse": 2
+}

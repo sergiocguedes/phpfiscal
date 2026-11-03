@@ -1,0 +1,15 @@
+{
+    "xsd_valido": true,
+    "erros_schema": [],
+    "assinaturas": [
+        {
+            "assinatura_valida": true,
+            "digest_valido": true
+        },
+        {
+            "assinatura_valida": true,
+            "digest_valido": true
+        }
+    ],
+    "sha256": "6c35186c2581ce2d9cc8fbcae11e8d1592fa624af43ac184476b85ac95479dd4"
+}

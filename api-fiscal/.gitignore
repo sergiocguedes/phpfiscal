@@ -1,0 +1,10 @@
+.env
+.env.local
+.env.online
+storage-local/
+storage-online/
+storage/
+vendor/
+run/
+secrets/
+var/

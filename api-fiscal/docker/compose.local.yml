@@ -1,0 +1,47 @@
+name: emissor-local
+x-app: &app
+  build: {context: ., target: fiscal-cli}
+  image: emissor-fiscal-local:3.1
+  restart: unless-stopped
+  user: "10096:10096"
+  volumes:
+    - ..:/app:ro
+    - ../.env.local:/app/.env:ro
+    - ../storage-local:/app/storage
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fiscal
+      POSTGRES_USER: fiscal
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Use --env-file .env.local}
+    volumes: [fiscal-db:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fiscal -d fiscal"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  web:
+    <<: *app
+    command: [bash, /app/docker/run-web.sh]
+    ports: ["127.0.0.1:8081:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, php, -r, "exit(@file_get_contents('http://127.0.0.1:8000/api/v1/health') === false ? 1 : 0);"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+  worker:
+    <<: *app
+    command: [php, bin/worker.php]
+    depends_on:
+      web: {condition: service_healthy}
+volumes:
+  fiscal-db:

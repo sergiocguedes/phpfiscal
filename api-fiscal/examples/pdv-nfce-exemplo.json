@@ -1,0 +1,28 @@
+{
+  "operacao_id": "loja01-caixa01-venda12345",
+  "contingencia": "automatica",
+  "nota": {
+    "modelo": 65,
+    "serie": 1,
+    "natureza_operacao": "VENDA AO CONSUMIDOR",
+    "presenca": 1,
+    "itens": [
+      {
+        "codigo": "SKU-001",
+        "descricao": "Produto de teste",
+        "ncm": "61091000",
+        "cfop": "5102",
+        "unidade": "UN",
+        "quantidade": 1,
+        "valor_unitario": 10.00,
+        "impostos": {
+          "icms": { "orig": 0, "CSOSN": "102" },
+          "pis": { "CST": "07" },
+          "cofins": { "CST": "07" }
+        }
+      }
+    ],
+    "pagamentos": [{ "forma": "01", "valor": 10.00 }],
+    "troco": 0
+  }
+}

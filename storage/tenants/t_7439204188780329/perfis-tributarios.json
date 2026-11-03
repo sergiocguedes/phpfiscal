@@ -1,0 +1,69 @@
+{
+    "perfis": {
+        "pt_4c7c5f3c70347375": {
+            "id": "pt_4c7c5f3c70347375",
+            "nome": "Simples · revenda",
+            "cfop_interno": "5102",
+            "cfop_interestadual": "6102",
+            "icms": {
+                "orig": 0,
+                "CSOSN": "102"
+            },
+            "pis": {
+                "CST": "49"
+            },
+            "cofins": {
+                "CST": "49"
+            },
+            "padrao": true,
+            "ipi": null,
+            "criado_em": "2026-11-02T01:12:15-03:00",
+            "atualizado_em": "2026-11-02T01:12:15-03:00"
+        },
+        "pt_dc6f2cd7e3328a90": {
+            "id": "pt_dc6f2cd7e3328a90",
+            "nome": "Simples · produção própria",
+            "cfop_interno": "5101",
+            "cfop_interestadual": "6101",
+            "icms": {
+                "orig": 0,
+                "CSOSN": "102"
+            },
+            "pis": {
+                "CST": "49"
+            },
+            "cofins": {
+                "CST": "49"
+            },
+            "padrao": false,
+            "ipi": null,
+            "criado_em": "2026-11-02T01:12:15-03:00",
+            "atualizado_em": "2026-11-02T01:12:15-03:00"
+        },
+        "pt_90589be864b5c2e9": {
+            "id": "pt_90589be864b5c2e9",
+            "nome": "Regime normal · revenda",
+            "cfop_interno": "5102",
+            "cfop_interestadual": "6102",
+            "icms": {
+                "orig": 0,
+                "CST": "00",
+                "modBC": 3,
+                "pICMS": 18
+            },
+            "icms_aliquota_interestadual": 12,
+            "pis": {
+                "CST": "01",
+                "pPIS": 1.65
+            },
+            "cofins": {
+                "CST": "01",
+                "pCOFINS": 7.6
+            },
+            "padrao": false,
+            "ipi": null,
+            "criado_em": "2026-11-02T01:12:15-03:00",
+            "atualizado_em": "2026-11-02T01:12:15-03:00"
+        }
+    }
+}

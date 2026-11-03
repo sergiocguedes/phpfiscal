@@ -1,0 +1,70 @@
+[02-Nov-2026 14:32:14 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 14:32:15 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 14:32:16 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 14:32:16 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 14:32:18 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 19:56:30 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 19:56:31 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 19:56:31 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 19:56:32 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30
+[02-Nov-2026 19:56:33 America/Sao_Paulo] PHP Fatal error:  Uncaught PDOException: SQLSTATE[08006] [7] connection to server at "db" (172.19.0.2), port 5432 failed: FATAL:  the database system is starting up in /app/src/Storage/PostgresStore.php:30
+Stack trace:
+#0 /app/src/Storage/PostgresStore.php(30): PDO->__construct('pgsql:host=db;p...', 'fiscal', Object(SensitiveParameterValue), Array)
+#1 /app/src/Storage/PostgresStore.php(40): App\Storage\PostgresStore::db()
+#2 /app/bin/banco.php(4): App\Storage\PostgresStore::migrate()
+#3 {main}
+  thrown in /app/src/Storage/PostgresStore.php on line 30

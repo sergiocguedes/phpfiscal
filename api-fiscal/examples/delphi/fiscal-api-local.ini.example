@@ -1,0 +1,3 @@
+[FiscalApi]
+UrlBase=http://localhost:8081/api/v1
+Chave=nfk_SUBSTITUA_PELA_CHAVE_DA_EMPRESA_LOCAL

@@ -1,0 +1,36 @@
+{
+  "competencia": "2026-11-02",
+  "servico": {
+    "codigo_tributacao_nacional": "080201",
+    "descricao": "Serviço de exemplo — valores calculados no Delphi"
+  },
+  "tomador": { "cpf": "52998224725", "nome": "Cliente de teste" },
+  "valores": {
+    "servico": 1000.00,
+    "tributacao_iss": 1,
+    "retencao_iss": 1,
+    "deducoes": { "valor": "100.00" },
+    "suspensao": {
+      "tipo": 1,
+      "numero_processo": "000000000000437834420248040001"
+    }
+  },
+  "tributos_federais": {
+    "pis_cofins": {
+      "cst": "01",
+      "base_calculo": "1000.00",
+      "aliquota_pis": "0.65",
+      "aliquota_cofins": "3.00",
+      "valor_pis": "6.50",
+      "valor_cofins": "30.00",
+      "tipo_retencao": 3
+    },
+    "retencao_cp": "0.00",
+    "retencao_irrf": "15.00",
+    "retencao_csll": "10.00"
+  },
+  "tributos_aproximados": {
+    "tipo": "percentual", "federal": 10, "estadual": 0, "municipal": 2
+  },
+  "pedido_id": "delphi-servico-0001"
+}

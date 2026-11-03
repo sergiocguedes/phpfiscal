@@ -1,0 +1,55 @@
+{
+    "descricao": "Referência dos fontes validados; divergência de hash exige revisão, não substituição automática.",
+    "files": {
+        "app/control/NFSeService.php": {
+            "sha256": "88e6785f848a316b7b9df756afc39ed2710f6f4d44724895c4d79169b202e831",
+            "metodos": [
+                "configurarCliente",
+                "sincronizarParametros",
+                "sincronizarConfiguracao",
+                "emitirNFSe",
+                "emitirNFSePorId",
+                "inscricaoMunicipal",
+                "montarIbsCbs",
+                "cepTomador",
+                "montarPayload",
+                "proximoNumeroRps",
+                "cancelarNotaFiscalCabecalho",
+                "extrairEventoCancelamento",
+                "requestNfseApi"
+            ]
+        },
+        "app/control/configuracoes/ParametrosGeraisForm.php": {
+            "sha256": "09f43b71bbfa81f1ee6f9537ee7e5990358f76bb7c8a2c544be7c3b7d9f98fd4",
+            "metodos": [
+                "onSave"
+            ]
+        },
+        "app/service/PainelApiService.php": {
+            "sha256": "919c0bb84c5ca50c131c58968d28816b902c1c458630f3d2fcebd55db87a26dd",
+            "metodos": [
+                "postNfse"
+            ]
+        },
+        "app/service/NfseApiPhpService.php": {
+            "sha256": "1b0ef458a6c788e2bd40aa1b044529de1da510d0fd5d3a0ddeccdeb61fb85527",
+            "tipo": "servico_personalizado_integral"
+        },
+        "app/service/NfseApiPayload.php": {
+            "sha256": "17f6e4768d875f168fd2a14c469d65140cd5692d1831c9ab7a99dfa230f2f755",
+            "tipo": "servico_personalizado_integral"
+        },
+        "app/service/NfseApiConfiguracao.php": {
+            "sha256": "7504f586b7e25d1a520a9dc7c540f5975ecda996daeb539f1926495167b17ca2",
+            "tipo": "servico_personalizado_integral"
+        },
+        "app/model/NotaFiscalCabecalho.php": {
+            "sha256": "0d320ec4662fc2510213583d957cca54067f16ea1fb9c765cfde58df63613446",
+            "tipo": "modelo_com_campo_adicional"
+        },
+        "app/model/NotaFiscalDetalhe.php": {
+            "sha256": "4ff42dd485f10936854730e2d5bedc13f39487beff67ebdd158cb3907db75e44",
+            "tipo": "modelo_com_campo_adicional"
+        }
+    }
+}

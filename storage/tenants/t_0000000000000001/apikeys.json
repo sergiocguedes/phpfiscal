@@ -1,0 +1,12 @@
+{
+    "k_58220975507d42ff": {
+        "id": "k_58220975507d42ff",
+        "nome": "Chave legada (.env API_KEY)",
+        "prefixo": "(.env API_KEY)",
+        "hash": "391445decc579a72aae4e677e0e9b7e7365c511540321c6739c273a5e4018961",
+        "criado_em": "2026-11-02T01:07:09-03:00",
+        "criado_por": "migracao",
+        "ultimo_uso_em": null,
+        "revogada_em": null
+    }
+}
