@@ -20,12 +20,18 @@ final class EmissionService
     {
         return self::emitirNormalizado(self::normalizar($payload), $dryRun, $origem);
     }
-    public static function normalizar(array $payload): array
+    public static function normalizar(array $payload, bool $registrar = true): array
     {
         if (isset($payload['cliente_id']) || array_filter(is_array($payload['itens'] ?? null) ? $payload['itens'] : [], fn($i) => is_array($i) && (isset($i['produto_codigo']) || isset($i['perfil_tributario_id'])))) {
             throw new ApiException(422, 'dados_fiscais_obrigatorios', 'Envie os dados completos da nota; esta edição não mantém catálogo ou perfis de cálculo.');
         }
-        return NfeBuilder::validatePayload($payload);
+        // itens com "regra": a API calcula os tributos e preenche itens[].impostos (docs/TRIBUTOS-CALCULO.md)
+        [$payload, $calc] = \App\Tributos\EmissaoTributos::aplicar($payload, 55, 'itens', $registrar);
+        $p = NfeBuilder::validatePayload($payload);
+        if ($calc !== null) {
+            $p['_calculo_tributos'] = $calc;
+        }
+        return $p;
     }
     private const AUTORIZADA = ['100', '150', '120']; // 120 = autorizada com alerta (NT 2026.002)
     private const DENEGADA = ['110', '205', '301', '302', '303'];
@@ -71,6 +77,9 @@ final class EmissionService
                 'xml' => $xml,
                 'observacao' => 'XML não assinado e não enviado. Validação de schema feita com assinatura placeholder; a numeração não foi consumida.',
             ];
+            if (isset($p['_calculo_tributos'])) {
+                $out['calculo_tributos'] = $p['_calculo_tributos'];
+            }
             if ($mod === Nfce::MODELO) {
                 $out += self::qrFromXml($xml);
                 $out['observacao'] .= ' O QR-Code é o mesmo da emissão on-line (não depende da assinatura).';
@@ -114,6 +123,9 @@ final class EmissionService
             'criado_em' => date('c'),
             'historico' => [],
         ];
+        if (isset($p['_calculo_tributos'])) {
+            $rec['calculo_tributos'] = \App\Tributos\EmissaoTributos::resumo($p['_calculo_tributos']);
+        }
 
         NfeRepository::claimNumero($rec);
         try {

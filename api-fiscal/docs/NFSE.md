@@ -45,7 +45,22 @@ Exemplo com serviço informado pela integração:
 }
 ```
 
-O objeto `servico` é obrigatório em cada emissão. `servico_id` não é aceito; não há cadastro de serviços. Informe o tomador diretamente; não existe catálogo de clientes nesta edição.
+### Regra de ISS cadastrada (`regra_iss`)
+
+Com regras de ISS cadastradas (`/api/v1/tributacao/regras-iss`, mantidas no Portal do Contador), a emissão pode informar só o código da regra. A API preenche `servico.codigo_tributacao_nacional`, `nbs`, `codigo_tributacao_municipal`, `codigo_interno` e `valores.tributacao_iss`, `tipo_imunidade`, `retencao_iss`, `aliquota_iss`. O que vier no JSON prevalece sobre a regra. A descrição do serviço continua vindo da nota.
+
+```json
+{
+  "regra_iss": "SOFTWARE-RET",
+  "servico": { "descricao": "Licença mensal do sistema" },
+  "tomador": { "cnpj": "11444777000161", "nome": "Cliente Ltda" },
+  "valores": { "servico": 1500.00 }
+}
+```
+
+Código inexistente: 422 no campo `regra_iss`. A resposta e o registro trazem `regra_iss` (código e descrição) para conferência. Listagem e detalhe para o ERP: `GET /api/v1/tributacao/regras-iss` e `GET /api/v1/tributacao/regras-iss/{codigo}` (ver `docs/TRIBUTOS-CALCULO.md`).
+
+O objeto `servico` é obrigatório em cada emissão (com `regra_iss`, basta a descrição). `servico_id` não é aceito; não há cadastro de serviços. Informe o tomador diretamente; não existe catálogo de clientes nesta edição.
 
 ## Tributos informados pelo Delphi
 

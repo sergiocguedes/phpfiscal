@@ -151,7 +151,7 @@ async function companyRegistration(main){
 async function companySettings(main){
   const current=companies.find(c=>c.id===selectedCompany);
   if(!current)return companyPicker(main);
-  const tabs=[['cadastro','Cadastro e ambiente',companyRegistration],['fiscal','Dados fiscais e séries',fiscalCompany],['certificado','Certificado A1',certificate],['chaves','Chaves de API',keys],['nfse','Prestador NFS-e',nfse],['resumo','Resumo',overview]];
+  const tabs=[['cadastro','Cadastro e ambiente',companyRegistration],['fiscal','Dados fiscais e séries',fiscalCompany],['certificado','Certificado A1',certificate],['chaves','Chaves de API',keys],['nfse','Prestador NFS-e',nfse],['tributacao','Tributação',tributacao],['resumo','Resumo',overview]];
   let active=new URLSearchParams(location.search).get('aba')||'cadastro';
   if(!tabs.some(t=>t[0]===active))active='cadastro';
   main.innerHTML=`<div class="company-heading"><div><a data-route href="/empresas">← Todas as empresas</a><h1>${esc(current.nome)}</h1><p class="lead">CNPJ ${esc(current.cnpj)} · ${esc(companyEnvironments(current))} · ${current.ativa?'Ativa':'Inativa'}</p></div>${select('empresa_selecionada','Configurar outra empresa',current.id,companies.map(c=>[c.id,c.nome]))}</div><div class="company-tabs" role="tablist" aria-label="Configurações da empresa">${tabs.map(([id,label])=>`<button type="button" role="tab" id="tab-${id}" aria-controls="panel-${id}" aria-selected="false" tabindex="-1" data-tab="${id}">${label}</button>`).join('')}</div><p class="muted section-help">Cada aba tem seu próprio botão para salvar. Todas as configurações abaixo pertencem à empresa exibida acima.</p>${tabs.map(([id,label])=>`<div id="panel-${id}" class="company-panel" role="tabpanel" aria-labelledby="tab-${id}" hidden><p>Carregando ${esc(label)}…</p></div>`).join('')}`;
@@ -184,3 +184,102 @@ async function administration(main){
   main.querySelectorAll('[data-admin-revoke]').forEach(b=>b.onclick=async()=>{try{await api('/admin/chaves/'+b.dataset.adminRevoke,'DELETE');await administration(main);}catch(e){notice(e.message,true);}});
 }
 (async()=>{try{session=await api('/auth/sessao');}catch{}await render();})();
+// ---------------------------------------------------------------- Tributação (matriz de regras da empresa)
+const CST_ICMS=[['00','00 - Tributada integralmente'],['02','02 - Monofásico próprio (combustíveis)'],['10','10 - Tributada com ICMS ST'],['20','20 - Com redução de base de cálculo'],['30','30 - Isenta/não tributada com ICMS ST'],['40','40 - Isenta'],['41','41 - Não tributada'],['50','50 - Suspensão'],['51','51 - Diferimento'],['60','60 - ICMS cobrado anteriormente por ST'],['61','61 - Monofásico cobrado anteriormente'],['70','70 - Redução de base com ICMS ST'],['90','90 - Outras'],['101','101 - Simples: com permissão de crédito'],['102','102 - Simples: sem permissão de crédito'],['103','103 - Simples: isenção por faixa de receita'],['201','201 - Simples: com crédito e ICMS ST'],['202','202 - Simples: sem crédito e com ICMS ST'],['203','203 - Simples: isenção por faixa e ICMS ST'],['300','300 - Simples: imune'],['400','400 - Simples: não tributada'],['500','500 - Simples: ICMS cobrado anteriormente por ST'],['900','900 - Simples: outros']];
+const CST_PISCOFINS=[['01','01 - Alíquota básica'],['02','02 - Alíquota diferenciada'],['03','03 - Alíquota por unidade'],['04','04 - Monofásica, revenda a alíquota zero'],['05','05 - Substituição tributária'],['06','06 - Alíquota zero'],['07','07 - Isenta'],['08','08 - Sem incidência'],['09','09 - Suspensão'],['49','49 - Outras operações de saída'],['99','99 - Outras operações']];
+const CAMPO_ICMS={modBC:['Modalidade BC',[[3,'3 - Valor da operação'],[0,'0 - Margem de valor agregado'],[1,'1 - Pauta'],[2,'2 - Preço tabelado máximo']]],pICMS:['Alíquota ICMS (%)'],pRedBC:['Redução BC ICMS (%)'],pFCP:['FCP (%)'],pDif:['Diferimento (%)'],pCredSN:['Alíquota de crédito do Simples (%)'],modBCST:['Modalidade BC ST',[[4,'4 - Margem de valor agregado (MVA)'],[6,'6 - Valor da operação'],[0,'0 - Preço tabelado (pauta do produto)'],[5,'5 - Pauta (do produto)']]],pMVAST:['MVA ST (%)'],pICMSST:['Alíquota ICMS ST (%)'],pRedBCST:['Redução BC ICMS ST (%)'],pFCPST:['FCP ST (%)'],motDesICMS:['Motivo da desoneração',[['','Sem desoneração'],[1,'1 - Táxi'],[3,'3 - Produtor agropecuário'],[4,'4 - Frotista/locadora'],[5,'5 - Diplomático/consular'],[6,'6 - Utilitários e motos (Amazônia Ocidental/ALC)'],[7,'7 - SUFRAMA'],[8,'8 - Venda a órgão público'],[9,'9 - Outros'],[10,'10 - Deficiente condutor'],[11,'11 - Deficiente não condutor'],[12,'12 - Órgão de fomento'],[90,'90 - Solicitado pelo Fisco']]],indDeduzDeson:['Deduz desoneração do total',[[0,'Não'],[1,'Sim']]],metodo_desoneracao:['Cálculo do desonerado (base legal)',[['por_fora','Por fora - base × alíquota'],['por_dentro','Por dentro - base ÷ (1 − alíquota) × alíquota']]]};
+const PESSOA={F:'Física',J:'Jurídica',E:'Estrangeiro'};
+const num=v=>v===''||v==null?undefined:Number(String(v).replace(',','.'));
+const fmt=v=>v==null||v===''?'':String(v).replace('.',',');
+async function tributacao(main){
+  const cad=await api('/tributacao');if(!main.isConnected)return;
+  const icmsP=cad.perfis.filter(p=>p.tipo==='icms'),pcP=cad.perfis.filter(p=>p.tipo==='piscofins');
+  const opt=(l,todos)=>[...(todos?[['',todos]]:[]),...l.map(x=>[x.codigo,x.codigo+' - '+x.nome])];
+  const ufs=cad.ufs.map(u=>[u,u]);
+  const state={perfil:sessionStorage.getItem('trib_perfil')||'',operacao:sessionStorage.getItem('trib_op')||'',uf:sessionStorage.getItem('trib_uf')||'',pcPerfil:''};
+  main.innerHTML=`<h2>Tributação</h2><p class="lead">Matriz de regras da empresa: o produto informa o perfil de ICMS e de PIS/COFINS, a venda informa a operação, e a API encontra a regra pela UF de destino e pelo tipo de pessoa do cliente.</p>
+  <section class="card"><h2>Perfis e operações</h2><div class="grid"><div><table><thead><tr><th>Perfil</th><th>Tipo</th><th></th></tr></thead><tbody>${cad.perfis.map(p=>`<tr><td>${esc(p.codigo)} - ${esc(p.nome)}</td><td>${p.tipo==='icms'?'ICMS':'PIS/COFINS'}</td><td><button type="button" class="danger" data-del-perfil="${esc(p.codigo)}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="3">Nenhum perfil.</td></tr>'}</tbody></table>
+  <form id="trib-perfil" class="inline-form">${input('codigo','Código','','text','required maxlength="30" pattern="[A-Za-z0-9_-]+"')}${input('nome','Nome','','text','required maxlength="60" placeholder="PRODUTO SUBSTITUIÇÃO"')}${select('tipo','Tipo','icms',[['icms','ICMS'],['piscofins','PIS/COFINS']])}<div class="actions"><button type="submit">Salvar perfil</button></div></form></div>
+  <div><table><thead><tr><th>Operação</th><th></th></tr></thead><tbody>${cad.operacoes.map(o=>`<tr><td>${esc(o.codigo)} - ${esc(o.nome)}</td><td><button type="button" class="danger" data-del-op="${esc(o.codigo)}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="2">Nenhuma operação.</td></tr>'}</tbody></table>
+  <form id="trib-op" class="inline-form">${input('codigo','Código','','text','required maxlength="30" pattern="[A-Za-z0-9_-]+"')}${input('nome','Nome (vai para a natureza da operação)','','text','required maxlength="60" placeholder="VENDA DE PRODUTOS"')}<div class="actions"><button type="submit">Salvar operação</button></div></form></div></div>
+  <p class="muted">Salvar com um código existente altera o nome. Perfis e operações com regras não podem ser excluídos.</p></section>
+  <section class="card"><h2>Regras de ICMS</h2><div class="filters">${select('f_perfil','Perfil de ICMS',state.perfil,opt(icmsP,'Todos'))}${select('f_op','Operação',state.operacao,opt(cad.operacoes,'Todas'))}${select('f_uf','UF de destino',state.uf,[['','Todas'],...ufs])}<button type="button" id="nova-icms">Nova regra</button></div><div id="icms-editor"></div><div id="icms-lista"><p>Carregando…</p></div></section>
+  <section class="card"><h2>Regras de PIS/COFINS</h2><div class="filters">${select('f_pc','Perfil de PIS/COFINS','',opt(pcP,'Todos'))}<button type="button" id="nova-pc">Nova regra</button></div><div id="pc-editor"></div><div id="pc-lista"><p>Carregando…</p></div></section>`;
+  const reload=()=>tributacao(main).catch(e=>notice(e.message,true));
+  form('trib-perfil',async d=>{await api('/tributacao/perfis/'+encodeURIComponent(d.codigo),'PUT',{nome:d.nome,tipo:d.tipo});await reload();notice('Perfil salvo.');});
+  form('trib-op',async d=>{await api('/tributacao/operacoes/'+encodeURIComponent(d.codigo),'PUT',{nome:d.nome});await reload();notice('Operação salva.');});
+  const confirmDel=(sel,attr,path,msg)=>main.querySelectorAll(sel).forEach(b=>b.onclick=async()=>{if(!confirm(msg))return;try{await api(path(b.dataset[attr]),'DELETE');await reload();notice('Excluído.');}catch(e){notice(e.message,true);}});
+  confirmDel('[data-del-perfil]','delPerfil',c=>'/tributacao/perfis/'+encodeURIComponent(c),'Excluir este perfil?');
+  confirmDel('[data-del-op]','delOp',c=>'/tributacao/operacoes/'+encodeURIComponent(c),'Excluir esta operação?');
+
+  const lista=main.querySelector('#icms-lista'),editor=main.querySelector('#icms-editor');
+  async function listarIcms(){
+    const q=new URLSearchParams(Object.entries({perfil:state.perfil,operacao:state.operacao,uf:state.uf}).filter(([,v])=>v));
+    const {regras}=await api('/tributacao/regras-icms?'+q);if(!main.isConnected)return;
+    lista.innerHTML=`<table><thead><tr><th>Perfil</th><th>Operação</th><th>UF</th><th>Pessoa</th><th>CST</th><th>CFOP</th><th>ICMS %</th><th>Red. BC %</th><th>MVA %</th><th>ICMS ST %</th><th>IPI</th><th>Descrição</th><th></th></tr></thead><tbody>${regras.map((r,i)=>{const g=r.icms;return `<tr><td>${esc(r.perfil)}</td><td>${esc(r.operacao)}</td><td>${esc(r.uf)}</td><td>${PESSOA[r.tipo_pessoa]}</td><td>${esc(g.CST||g.CSOSN)}</td><td>${esc(r.cfop)}</td><td>${fmt(g.pICMS)}</td><td>${fmt(g.pRedBC)}</td><td>${fmt(g.pMVAST)}</td><td>${fmt(g.pICMSST)}</td><td>${esc(r.ipi?.CST||'')}</td><td>${esc(r.descricao)}</td><td class="row-actions"><button type="button" class="secondary" data-edit="${i}">Alterar</button><button type="button" class="secondary" data-copy="${i}">Copiar</button><button type="button" class="danger" data-del="${i}">Excluir</button></td></tr>`;}).join('')||'<tr><td colspan="13">Nenhuma regra para o filtro.</td></tr>'}</tbody></table>`;
+    lista.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editarIcms(regras[b.dataset.edit]));
+    lista.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>copiarIcms(regras[b.dataset.copy]));
+    lista.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const r=regras[b.dataset.del];if(!confirm(`Excluir a regra ${r.perfil} / ${r.operacao} / ${r.uf} / ${PESSOA[r.tipo_pessoa]}?`))return;try{await api(`/tributacao/regras-icms/${encodeURIComponent(r.perfil)}/${encodeURIComponent(r.operacao)}/${r.uf}/${r.tipo_pessoa}`,'DELETE');await listarIcms();notice('Regra excluída.');}catch(e){notice(e.message,true);}});
+  }
+  function editarIcms(r){
+    const novo=!r;r=r||{perfil:state.perfil,operacao:state.operacao,uf:state.uf,tipo_pessoa:'F',icms:{CST:'00'},cfop:'5102'};
+    const cst=r.icms.CST||r.icms.CSOSN;
+    editor.innerHTML=`<form id="icms-form" class="editor"><h2>${novo?'Nova regra de ICMS':'Alterar regra de ICMS'}</h2><div class="grid">${select('perfil','Perfil de ICMS *',r.perfil,opt(icmsP))}${select('operacao','Operação *',r.operacao,opt(cad.operacoes))}${select('uf','UF de destino *',r.uf||'',ufs)}${select('tipo_pessoa','Tipo de pessoa *',r.tipo_pessoa,Object.entries(PESSOA))}${input('descricao','Descrição (identificação da regra) *',r.descricao||'','text','required maxlength="120"')}${input('cfop','CFOP *',r.cfop,'text','required pattern="[1-35-7][0-9]{3}"')}<label class="wide">CST / CSOSN do ICMS *<select name="cst" aria-label="CST / CSOSN do ICMS">${CST_ICMS.map(([v,t])=>`<option value="${v}" ${v===cst?'selected':''}>${esc(t)}</option>`).join('')}</select></label></div>
+    <div class="grid" id="icms-campos"></div><h2>IPI (só NF-e)</h2><div class="grid">${input('ipi_cst','CST do IPI',r.ipi?.CST||'','text','pattern="[0-9]{2}" placeholder="52"')}${input('ipi_cenq','Enquadramento legal',r.ipi?.cEnq||'999','text','pattern="[0-9]{3}"')}${input('ipi_p','Alíquota IPI (%)',fmt(r.ipi?.pIPI),'text','inputmode="decimal"')}</div>
+    <div class="actions"><button type="submit">Confirmar</button><button type="button" class="secondary" id="icms-cancelar">Cancelar</button></div></form>`;
+    const f=editor.querySelector('#icms-form');
+    if(!novo)['perfil','operacao','uf','tipo_pessoa'].forEach(n=>f.elements[n].disabled=true);
+    const campos=()=>{const c=f.elements.cst.value,lista=cad.campos_por_cst[c]||[],obrig=cad.obrigatorios_por_cst[c]||[];
+      f.querySelector('#icms-campos').innerHTML=lista.length?lista.map(k=>{const [t,ops]=CAMPO_ICMS[k];const titulo=t+(obrig.includes(k)?' *':'');const v=r.icms[k]??(k==='modBC'?3:k==='modBCST'?4:'');return ops?select('i_'+k,titulo,v,ops):input('i_'+k,titulo,fmt(v),'text',`inputmode="decimal" ${obrig.includes(k)?'required':''}`);}).join(''):'<p class="muted wide">Este CST não tem parâmetros na regra.</p>';};
+    f.elements.cst.onchange=campos;campos();
+    f.querySelector('#icms-cancelar').onclick=()=>{editor.innerHTML='';};
+    form('icms-form',async d=>{const c=d.cst,g={[c.length===3?'CSOSN':'CST']:c};
+      for(const k of cad.campos_por_cst[c]||[]){const v=f.elements['i_'+k].value;if(v!=='')g[k]=k==='metodo_desoneracao'?v:num(v);}
+      const body={descricao:d.descricao,cfop:d.cfop,icms:g};
+      if(d.ipi_cst)body.ipi={CST:d.ipi_cst,cEnq:d.ipi_cenq||'999',...(d.ipi_p!==''?{pIPI:num(d.ipi_p)}:{})};
+      const k=novo?{perfil:d.perfil,operacao:d.operacao,uf:d.uf,tipo_pessoa:d.tipo_pessoa}:r;
+      await api(`/tributacao/regras-icms/${encodeURIComponent(k.perfil)}/${encodeURIComponent(k.operacao)}/${k.uf}/${k.tipo_pessoa}`,'PUT',body);
+      editor.innerHTML='';await listarIcms();notice('Regra salva.');});
+    f.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function copiarIcms(r){
+    const caixas=(nome,l,marcados)=>`<div class="check-grid">${l.map(([v,t])=>`<label><input type="checkbox" name="${nome}" value="${esc(v)}" ${marcados.includes(v)?'checked':''}>${esc(t)}</label>`).join('')}</div>`;
+    editor.innerHTML=`<form id="copiar-form" class="editor"><h2>Copiar regra</h2><p class="muted">Origem: perfil ${esc(r.perfil)} · ${esc(r.operacao)} · ${esc(r.uf)} · ${PESSOA[r.tipo_pessoa]} — ${esc(r.descricao)}</p>
+    <fieldset><legend>UFs de destino <button type="button" class="secondary small" id="todas-ufs">Marcar todas</button></legend>${caixas('ufs',ufs,[r.uf])}</fieldset>
+    <fieldset><legend>Tipos de pessoa</legend>${caixas('tipos',Object.entries(PESSOA),[r.tipo_pessoa])}</fieldset>
+    <fieldset><legend>Perfis de ICMS</legend>${caixas('perfis',icmsP.map(p=>[p.codigo,p.codigo+' - '+p.nome]),[r.perfil])}</fieldset>
+    <fieldset><legend>Operações</legend>${caixas('ops',cad.operacoes.map(o=>[o.codigo,o.codigo+' - '+o.nome]),[r.operacao])}</fieldset>
+    <label class="check"><input type="checkbox" name="sobrescrever"> Substituir regras que já existem</label>
+    <div class="actions"><button type="submit">Copiar</button><button type="button" class="secondary" id="copiar-cancelar">Cancelar</button></div></form>`;
+    const f=editor.querySelector('#copiar-form');
+    f.querySelector('#todas-ufs').onclick=()=>f.querySelectorAll('[name=ufs]').forEach(c=>c.checked=true);
+    f.querySelector('#copiar-cancelar').onclick=()=>{editor.innerHTML='';};
+    const marcados=n=>[...f.querySelectorAll(`[name=${n}]:checked`)].map(c=>c.value);
+    form('copiar-form',async()=>{const res=await api('/tributacao/regras-icms/copiar','POST',{origem:{perfil:r.perfil,operacao:r.operacao,uf:r.uf,tipo_pessoa:r.tipo_pessoa},destino:{ufs:marcados('ufs'),tipos_pessoa:marcados('tipos'),perfis:marcados('perfis'),operacoes:marcados('ops')},sobrescrever:f.elements.sobrescrever.checked});
+      editor.innerHTML='';await listarIcms();notice(`Cópia concluída: ${res.criadas} criada(s), ${res.sobrescritas} substituída(s), ${res.ignoradas.length} já existia(m) e foi(ram) mantida(s).`);});
+    f.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  for(const [n,k,s] of [['f_perfil','perfil','trib_perfil'],['f_op','operacao','trib_op'],['f_uf','uf','trib_uf']])main.querySelector(`[name=${n}]`).onchange=e=>{state[k]=e.target.value;sessionStorage.setItem(s,state[k]);listarIcms().catch(x=>notice(x.message,true));};
+  main.querySelector('#nova-icms').onclick=()=>{if(!icmsP.length||!cad.operacoes.length){notice('Cadastre antes um perfil de ICMS e uma operação.',true);return;}editarIcms(null);};
+
+  const pcLista=main.querySelector('#pc-lista'),pcEditor=main.querySelector('#pc-editor');
+  async function listarPc(){
+    const {regras}=await api('/tributacao/regras-piscofins'+(state.pcPerfil?'?perfil='+encodeURIComponent(state.pcPerfil):''));if(!main.isConnected)return;
+    pcLista.innerHTML=`<table><thead><tr><th>Perfil</th><th>Operação</th><th>CST PIS</th><th>PIS</th><th>CST COFINS</th><th>COFINS</th><th>Descrição</th><th></th></tr></thead><tbody>${regras.map((r,i)=>`<tr><td>${esc(r.perfil)}</td><td>${esc(r.operacao)}</td><td>${esc(r.pis.CST)}</td><td>${r.pis.vAliqProd!=null?'R$ '+fmt(r.pis.vAliqProd):fmt(r.pis.pPIS)}</td><td>${esc(r.cofins.CST)}</td><td>${r.cofins.vAliqProd!=null?'R$ '+fmt(r.cofins.vAliqProd):fmt(r.cofins.pCOFINS)}</td><td>${esc(r.descricao)}</td><td class="row-actions"><button type="button" class="secondary" data-edit="${i}">Alterar</button><button type="button" class="danger" data-del="${i}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="8">Nenhuma regra.</td></tr>'}</tbody></table>`;
+    pcLista.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editarPc(regras[b.dataset.edit]));
+    pcLista.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const r=regras[b.dataset.del];if(!confirm(`Excluir a regra ${r.perfil} / ${r.operacao}?`))return;try{await api(`/tributacao/regras-piscofins/${encodeURIComponent(r.perfil)}/${encodeURIComponent(r.operacao)}`,'DELETE');await listarPc();notice('Regra excluída.');}catch(e){notice(e.message,true);}});
+  }
+  function editarPc(r){
+    const novo=!r;r=r||{perfil:state.pcPerfil,operacao:'',pis:{CST:'01'},cofins:{CST:'01'}};
+    const grupo=(g,p,v)=>`${select(g+'_cst','CST '+g.toUpperCase()+' *',v.CST,CST_PISCOFINS)}${input(g+'_p','Alíquota '+g.toUpperCase()+' (%)',fmt(v[p]),'text','inputmode="decimal"')}${input(g+'_q','Alíquota por unidade (R$, CST 03)',fmt(v.vAliqProd),'text','inputmode="decimal"')}`;
+    pcEditor.innerHTML=`<form id="pc-form" class="editor"><h2>${novo?'Nova regra de PIS/COFINS':'Alterar regra de PIS/COFINS'}</h2><div class="grid">${select('perfil','Perfil de PIS/COFINS *',r.perfil,opt(pcP))}${select('operacao','Operação *',r.operacao,opt(cad.operacoes))}${input('descricao','Descrição (identificação da regra) *',r.descricao||'','text','required maxlength="120"')}<span></span>${grupo('pis','pPIS',r.pis)}<span></span>${grupo('cofins','pCOFINS',r.cofins)}</div><p class="muted">CST 01/02: alíquota obrigatória. CST 03: alíquota por unidade. CST 04 a 09: sem alíquota.</p><div class="actions"><button type="submit">Confirmar</button><button type="button" class="secondary" id="pc-cancelar">Cancelar</button></div></form>`;
+    const f=pcEditor.querySelector('#pc-form');
+    if(!novo)['perfil','operacao'].forEach(n=>f.elements[n].disabled=true);
+    f.querySelector('#pc-cancelar').onclick=()=>{pcEditor.innerHTML='';};
+    const g=(d,n,p)=>({CST:d[n+'_cst'],...(d[n+'_p']!==''?{[p]:num(d[n+'_p'])}:{}),...(d[n+'_q']!==''?{vAliqProd:num(d[n+'_q'])}:{})});
+    form('pc-form',async d=>{const k=novo?d:r;await api(`/tributacao/regras-piscofins/${encodeURIComponent(k.perfil)}/${encodeURIComponent(k.operacao)}`,'PUT',{descricao:d.descricao,pis:g(d,'pis','pPIS'),cofins:g(d,'cofins','pCOFINS')});pcEditor.innerHTML='';await listarPc();notice('Regra salva.');});
+  }
+  main.querySelector('[name=f_pc]').onchange=e=>{state.pcPerfil=e.target.value;listarPc().catch(x=>notice(x.message,true));};
+  main.querySelector('#nova-pc').onclick=()=>{if(!pcP.length||!cad.operacoes.length){notice('Cadastre antes um perfil de PIS/COFINS e uma operação.',true);return;}editarPc(null);};
+  await Promise.all([listarIcms(),listarPc()]);
+}

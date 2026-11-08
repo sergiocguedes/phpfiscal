@@ -110,6 +110,7 @@ final class NfseService
                 'versao_leiaute' => DpsBuilder::VERSAO,
                 'leiaute_xsd' => $b['leiaute'],
                 'valor_servico' => $p['valores']['servico'],
+                'regra_iss' => $p['regra_iss'] ?? null,
                 'estimativa' => $p['estimativa'],
                 'xml' => $b['xml'],
                 'observacao' => 'DPS não assinada e não enviada; validada no XSD oficial v1.01 do ambiente (pacote ' . $b['leiaute'] . '). A numeração não foi consumida. '
@@ -146,6 +147,7 @@ final class NfseService
             'descricao' => mb_substr($p['servico']['descricao'], 0, 200),
             'tomador' => $p['tomador'] === null ? null : array_intersect_key($p['tomador'], array_flip(['cpf', 'cnpj', 'nome', 'email'])),
             'pedido_id' => $p['pedido_id'] ?? null,
+            'regra_iss' => $p['regra_iss'] ?? null,
             'origem' => $origem,
             'status' => 'processando',
             'criado_em' => date('c'),

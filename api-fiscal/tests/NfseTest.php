@@ -218,6 +218,40 @@ final class NfseTest extends TestCase
         $this->assertSame(0, $this->semRede());
     }
 
+    public function testRegraDeIssPreencheServicoEValores(): void
+    {
+        $this->configure();
+        $this->configNfse();
+        $r = $this->authed('PUT', '/api/v1/tributacao/regras-iss/CURSO', (string) json_encode(['descricao' => 'Curso retido',
+            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
+            'iss' => ['tributacao_iss' => 1, 'retencao_iss' => 2, 'aliquota_iss' => 2.5]]));
+        $this->assertSame(200, $r->status, $r->body);
+
+        $p = ['regra_iss' => 'CURSO', 'servico' => ['descricao' => 'Curso online'],
+            'tomador' => ['cpf' => '52998224725', 'nome' => 'Maria da Silva'], 'valores' => ['servico' => 1000]];
+        $r = $this->dry($p);
+        $this->assertSame(200, $r->status, $r->body);
+        $d = $this->json($r);
+        $this->assertTrue($d['valida'], implode("\n", $d['erros_schema']));
+        $this->assertStringContainsString('<cTribNac>080201</cTribNac>', $d['xml']);
+        $this->assertStringContainsString('<cNBS>122051900</cNBS>', $d['xml']);
+        $this->assertStringContainsString('<tpRetISSQN>2</tpRetISSQN>', $d['xml']);
+        $this->assertStringContainsString('<pAliq>2.50</pAliq>', $d['xml']);
+        $this->assertSame(['codigo' => 'CURSO', 'descricao' => 'Curso retido'], $d['regra_iss']);
+
+        // o que vem no JSON prevalece sobre a regra
+        $p['valores']['retencao_iss'] = 1;
+        $d = $this->json($this->dry($p));
+        $this->assertStringContainsString('<tpRetISSQN>1</tpRetISSQN>', $d['xml']);
+        $this->assertStringNotContainsString('<pAliq>', $d['xml'], 'ME/EPP sem retenção: alíquota não vai na DPS');
+
+        $p['regra_iss'] = 'NAO-EXISTE';
+        $r = $this->dry($p);
+        $this->assertSame(422, $r->status);
+        $this->assertContains('regra_iss', array_column($this->json($r)['erro']['detalhes'], 'campo'));
+        $this->assertSame(1, $this->json($this->authed('GET', '/api/v1/nfse/config'))['proximo_numero']);
+    }
+
     public function testRegrasDaSefinRecusadasAntesDoEnvio(): void
     {
         $this->configure();

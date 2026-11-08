@@ -96,10 +96,37 @@ final class App {
         $r->add('POST', "$p/nfe/{chave}/cancelar", [$this, 'cancelar'], $fiscal);
         $r->add('POST', "$p/nfe/{chave}/cce", [$this, 'cce'], $fiscal);
         $r->add('POST', "$p/inutilizar", [$this, 'inutilizar'], $fiscal);
+        $portal = ['portal' => true];
+        $r->add('POST', "$p/tributos/calcular", [\App\Http\Controllers\TributosController::class, 'calcular'], $portal);
+        $pc = \App\Http\Controllers\PortalController::class;
+        $r->add('POST', "$p/portal/acessos", [$pc, 'criarAcesso'], $owner);
+        $r->add('POST', "$p/portal/sessao", [$pc, 'sessao'], ['public' => true]);
+        $r->add('GET', "$p/portal/contexto", [$pc, 'contexto'], $portal);
+        $r->add('POST', "$p/portal/sair", [$pc, 'sair'], $portal);
+        $t = \App\Http\Controllers\TributacaoController::class;
+        $r->add('GET', "$p/tributacao", [$t, 'cadastro'], $portal);
+        $r->add('PUT', "$p/tributacao/perfis/{codigo}", [$t, 'salvarPerfil'], $owner + $portal);
+        $r->add('DELETE', "$p/tributacao/perfis/{codigo}", [$t, 'excluirPerfil'], $owner + $portal);
+        $r->add('PUT', "$p/tributacao/operacoes/{codigo}", [$t, 'salvarOperacao'], $owner + $portal);
+        $r->add('DELETE', "$p/tributacao/operacoes/{codigo}", [$t, 'excluirOperacao'], $owner + $portal);
+        $r->add('GET', "$p/tributacao/regras-icms", [$t, 'listarIcms'], $portal);
+        $r->add('POST', "$p/tributacao/regras-icms/copiar", [$t, 'copiarIcms'], $owner + $portal);
+        $r->add('GET', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'detalheIcms'], $portal);
+        $r->add('PUT', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'salvarIcms'], $owner + $portal);
+        $r->add('DELETE', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'excluirIcms'], $owner + $portal);
+        $r->add('GET', "$p/tributacao/regras-piscofins", [$t, 'listarPisCofins'], $portal);
+        $r->add('GET', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'detalhePisCofins'], $portal);
+        $r->add('PUT', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'salvarPisCofins'], $owner + $portal);
+        $r->add('DELETE', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'excluirPisCofins'], $owner + $portal);
+        $r->add('GET', "$p/tributacao/regras-iss", [$t, 'listarIss'], $portal);
+        $r->add('GET', "$p/tributacao/regras-iss/{codigo}", [$t, 'detalheIss'], $portal);
+        $r->add('PUT', "$p/tributacao/regras-iss/{codigo}", [$t, 'salvarIss'], $owner + $portal);
+        $r->add('DELETE', "$p/tributacao/regras-iss/{codigo}", [$t, 'excluirIss'], $owner + $portal);
+        $r->add('POST', "$p/tributacao/importar", [$t, 'importar'], $owner + $portal);
         $r->add('GET', "$p/nfse/config", [NfseController::class, 'getConfig'], []);
         $r->add('PUT', "$p/nfse/config", [NfseController::class, 'putConfig'], $owner);
         $r->add('GET', "$p/nfse/parametros", [NfseController::class, 'parametros']);
-        $r->add('GET', "$p/nfse/servicos-nacionais", [NfseController::class, 'servicosNacionais']);
+        $r->add('GET', "$p/nfse/servicos-nacionais", [NfseController::class, 'servicosNacionais'], ['portal' => true]); // lista pública (Anexo B)
         $r->add('GET', "$p/nfse", [NfseController::class, 'listar'], []);
         $r->add('POST', "$p/nfse", [NfseController::class, 'emitir']);
         $r->add('GET', "$p/nfse/{ref}", [NfseController::class, 'obter'], []);
@@ -135,7 +162,7 @@ final class App {
             [$handler, $opts] = $m;
             if(str_starts_with($req->path,'/api/v1/nfse')){\App\Tenancy\FiscalScope::setModelo('nfse');}
             elseif(str_starts_with($req->path,'/api/v1/pdv/nfce')){\App\Tenancy\FiscalScope::setModelo(65);}
-            elseif(isset($req->params['chave'])&&preg_match('/^\d{44}$/D',$req->params['chave'])){\App\Tenancy\FiscalScope::setModelo((int)substr($req->params['chave'],20,2));}
+            elseif(isset($req->params['chave'])&&preg_match('/^\d{44}$/D',$req->params['chave'])&&in_array((int)substr($req->params['chave'],20,2),[55,65],true)){\App\Tenancy\FiscalScope::setModelo((int)substr($req->params['chave'],20,2));}
             elseif(in_array($req->path,['/api/v1/nfe','/api/v1/inutilizar'],true)&&$req->method==='POST'){ $model=(int)($req->json()['modelo']??55);if(in_array($model,[55,65],true)){\App\Tenancy\FiscalScope::setModelo($model);} }
             elseif(in_array((int)($req->query['modelo']??55),[55,65],true)){\App\Tenancy\FiscalScope::setModelo((int)($req->query['modelo']??55));}
             if (!empty($opts['auth_form'])) {
@@ -143,6 +170,10 @@ final class App {
             }
             if (empty($opts['public'])) {
                 $p = Auth::authenticate($req);
+                if ($p->via === \App\Auth\Principal::VIA_PORTAL && empty($opts['portal'])) {
+                    \App\Support\Logger::audit('portal.rota', 'negado', ['path' => $req->path, 'metodo' => $req->method]);
+                    throw new ApiException(403, 'portal_sem_permissao', 'Esta operação não está disponível no Portal do Contador. Emissão, cancelamento e configuração são feitos no sistema da empresa.');
+                }
                 if ((!empty($opts['central']) && $p->acessoCentral===null) || (!empty($opts['admin']) && $p->acessoCentral!=='admin')) {
                     throw new ApiException(403,'acesso_central_negado','Acesso administrativo não permitido');
                 }
@@ -385,7 +416,7 @@ final class App {
 
     private static function preValidarEmissao(array $payload): void
     {
-        $p = EmissionService::normalizar($payload);
+        $p = EmissionService::normalizar($payload, false);
         $cfg = ConfigService::require();
         if (!CertificateStore::exists()) {
             throw new ApiException(412, 'certificado_ausente', 'Certificado A1 não cadastrado (POST /api/v1/certificado)');

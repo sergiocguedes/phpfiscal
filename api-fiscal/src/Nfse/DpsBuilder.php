@@ -49,6 +49,12 @@ final class DpsBuilder
     {
         $e = new Errors();
         $p = ['avisos' => []];
+        // regra_iss: código da regra de ISS da empresa; preenche servico e valores (o JSON informado prevalece)
+        $in = \App\Tributos\RegrasIss::aplicar($in, $e);
+        if (isset($in['_regra_iss'])) {
+            $p['regra_iss'] = $in['_regra_iss'];
+            unset($in['_regra_iss']);
+        }
         $op = (int) $cfg['opcao_simples_nacional'];
         $regAp = isset($cfg['regime_apuracao_sn']) ? (int) $cfg['regime_apuracao_sn'] : null;
         $regEsp = (int) ($cfg['regime_especial'] ?? 0);

@@ -37,6 +37,27 @@ final class Auth
         if ($req->header('authorization') !== null) {
             return self::requireBearer($req);
         }
+        // Portal do Contador: o front envia X-Portal; sem cookie do painel, a sessão do portal também vale
+        if ($req->header('x-portal') !== null || $req->cookie(SessionManager::cookieName()) === null) {
+            $pp = \App\Portal\PortalAcesso::principal($req);
+            if ($pp !== null) {
+                if ($req->isMutating()) {
+                    self::checkSameOrigin($req);
+                    $sent = (string) ($req->header('x-csrf-token') ?? '');
+                    if ($sent === '' || !hash_equals((string) $pp->session['csrf'], $sent)) {
+                        RequestContext::authenticate($pp);
+                        Logger::audit('auth.csrf', 'negado', ['path' => $req->path]);
+                        throw new ApiException(403, 'csrf_invalido', 'Token CSRF ausente ou inválido. Recarregue a página.');
+                    }
+                }
+                RequestContext::authenticate($pp);
+                return $pp;
+            }
+            if ($req->header('x-portal') !== null) {
+                throw new ApiException(401, 'portal_sessao_expirada', 'Sua sessão no portal expirou. Abra novamente pelo atalho do seu sistema.',
+                    [], ['Set-Cookie' => \App\Portal\PortalAcesso::clearCookie()]);
+            }
+        }
         [$p, $reason] = SessionManager::load($req);
         if ($p === null) {
             if ($reason !== 'sem_sessao') {

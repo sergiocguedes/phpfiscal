@@ -9,6 +9,8 @@ final class Principal
 {
     public const VIA_SESSION = 'sessao';
     public const VIA_API_KEY = 'chave_api';
+    /** Sessão do Portal do Contador (link de uso único gerado pelo sistema da empresa). */
+    public const VIA_PORTAL = 'portal';
 
     public function __construct(
         
@@ -52,6 +54,10 @@ final class Principal
 
     public function actor(): string
     {
-        return $this->via === self::VIA_SESSION ? 'user:' . $this->userId : 'api-key:' . $this->apiKeyId;
+        return match ($this->via) {
+            self::VIA_SESSION => 'user:' . $this->userId,
+            self::VIA_PORTAL => 'portal:' . $this->userId,
+            default => 'api-key:' . $this->apiKeyId,
+        };
     }
 }

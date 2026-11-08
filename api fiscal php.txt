@@ -1,0 +1,7 @@
+Implementar o calculo de ICMS, pis, cofins, ipi, e reforma tributação evitando calcular tudo no pdv e
+deixar isso por conta da api.
+talvez com isso até precisar de menos campos no sistema que vai fazer a integração.
+
+
+
+

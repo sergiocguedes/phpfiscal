@@ -4,7 +4,7 @@
 
 **Reforma Tributária calculada no Delphi:** use [modo RTC informado](RTC-INFORMADA-DELPHI.md) para grupos detalhados e totais sem recálculo. No endpoint do PDV, IBS/CBS e IS exigem esse modo explicitamente.
 
-O contrato dedicado do PDV usa `/api/v1/pdv/nfce`. O endpoint anterior `/api/v1/nfe` continua disponível com seu contrato anterior. Nesta etapa, o PDV informa ICMS, PIS e COFINS por item; não há aplicação dos perfis tributários nem do catálogo de produtos no novo endpoint. A montagem continua utilizando as validações e totalizações existentes do emissor. O motor tributário da segunda tarefa não foi implementado.
+O contrato dedicado do PDV usa `/api/v1/pdv/nfce`. O endpoint anterior `/api/v1/nfe` continua disponível com seu contrato anterior. Por item, o PDV informa os impostos já calculados (`impostos`) ou só a regra tributária (`regra`: CST/CSOSN e alíquotas) para a API calcular ICMS, PIS, COFINS e tributos aproximados — veja [Cálculo de tributos](TRIBUTOS-CALCULO.md#cálculo-na-emissão-post-nfe-e-pdvnfce). Com `regra`, a resposta traz `calculo_tributos` (id do cálculo, alertas, ajustes manuais e totais) e um pagamento único pode ir sem `valor`. Ainda não há perfis tributários nem catálogo de produtos no endpoint. A montagem continua utilizando as validações e totalizações existentes do emissor.
 
 URL local desta instalação: `http://localhost:8081`. Todas as rotas abaixo exigem `Authorization: Bearer <chave da empresa>`. O emitente, certificado A1 e CSC são cadastrados previamente na API. O tenant nunca é informado no JSON.
 

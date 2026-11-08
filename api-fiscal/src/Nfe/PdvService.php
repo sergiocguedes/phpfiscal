@@ -85,7 +85,8 @@ final class PdvService
             if (isset($nota['numero'])) {
                 throw new ApiException(422, 'numero_controlado_api', 'A numeração do PDV é reservada pela API. Informe apenas a série.');
             }
-            
+            // itens com "regra": tributos calculados pela API (docs/TRIBUTOS-CALCULO.md)
+            [$nota, $calc] = \App\Tributos\EmissaoTributos::aplicar($nota, 65, 'nota.itens');
             foreach (is_array($nota['itens'] ?? null) ? $nota['itens'] : [] as $i => $item) {
                 if (is_array($item) && (isset($item['impostos']['ibscbs']) || isset($item['impostos']['is']))
                     && !\App\Fiscal\RtcInformada::ativa($nota)) {
@@ -93,7 +94,7 @@ final class PdvService
                 }
                 foreach (['icms', 'pis', 'cofins'] as $imposto) {
                     if (!is_array($item) || !isset($item['impostos'][$imposto])) {
-                        throw ApiException::validation([['campo' => "nota.itens[$i].impostos.$imposto", 'mensagem' => 'Informe os impostos calculados pelo PDV nesta etapa']]);
+                        throw ApiException::validation([['campo' => "nota.itens[$i].impostos.$imposto", 'mensagem' => 'Informe os impostos calculados pelo PDV ou a regra do item para a API calcular']]);
                     }
                 }
             }
@@ -156,6 +157,9 @@ final class PdvService
                 'valor_total' => $b['vNF'], 'status' => 'preparando', 'xml_sem_assinatura' => $b['xml'],
                 'criado_em' => date('c'), 'tentativas' => 0, 'proxima_tentativa' => time() + 60,
             ];
+            if ($calc !== null) {
+                $op['calculo_tributos'] = \App\Tributos\EmissaoTributos::resumo($calc);
+            }
             NfeRepository::claimNumero($op);
             self::gravar($op);
             Logger::audit('pdv.criada', $op['status'], ['chave' => $op['chave'], 'operacao_id' => $id]);
@@ -225,6 +229,7 @@ final class PdvService
         $r = array_intersect_key($op, array_flip([
             'operacao_id', 'modelo', 'ambiente', 'chave', 'numero', 'serie', 'tipo_emissao', 'data_emissao', 'valor_total',
             'status', 'cStat', 'xMotivo', 'cStat_lote', 'xMotivo_lote', 'protocolo', 'autorizado_em', 'tentativas', 'proxima_tentativa', 'mensagem',
+            'calculo_tributos',
         ]));
         $local = NfeRepository::find($op['chave']);
         if (($local['status'] ?? '') === 'cancelada') {
