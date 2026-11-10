@@ -8,9 +8,9 @@ use App\Support\Errors;
 
 /**
  * Cálculo de ICMS (CST/CSOSN, ST, FCP, desoneração, diferimento, monofásico), IPI, PIS, COFINS,
- * ISSQN e tributos aproximados (Lei 12.741/2012) de uma venda, item a item, com os totais da nota.
+ * ISSQN, IBS/CBS (NT 2025.002-RTC) e tributos aproximados (Lei 12.741/2012) de uma venda, item a item, com os totais da nota.
  *
- * Ordem por item: IPI → ICMS (o IPI pode integrar a base) → PIS/COFINS (podem excluir o ICMS) → ISSQN → IBPT.
+ * Ordem por item: IPI → ICMS (o IPI pode integrar a base) → PIS/COFINS (podem excluir o ICMS) → ISSQN → IBS/CBS (base sem ICMS/PIS/COFINS) → IBPT.
  * Não grava nada: o resultado vai para a tela do sistema chamador ou para a emissão.
  */
 final class CalculadoraTributos
@@ -36,6 +36,15 @@ final class CalculadoraTributos
             'qBCMonoRet', 'vICMSMonoRet', 'vProd', 'vFrete', 'vSeg', 'vDesc', 'vIPI', 'vPIS', 'vCOFINS', 'vOutro', 'vTotTrib',
             'vCredICMSSN', 'sServ', 'sBC', 'sISS', 'sPIS', 'sCOFINS', 'sDescCond', 'sDescIncond'], '0');
         $vistos = [];
+        // IBS/CBS (Reforma Tributária): só regime normal; Simples/MEI dispensados em 2026 e sem leiaute definido depois
+        $rtcRegime = $op['crt'] === 3;
+        $tabCClass = null;
+        // alíquotas do IBS/CBS: as do JSON ou as da tabela da API (data + município de destino/emitente)
+        $aliqRtc = $op['aliquotas_ibscbs'] === null ? null : $op['aliquotas_ibscbs'] + ['origem' => ['tipo' => 'informada']];
+        $aliqBuscada = false;
+        $rt = array_fill_keys(['vBC', 'vIBSUF', 'vIBSMun', 'vCBS', 'vDifUF', 'vDifMun', 'vDifCBS', 'vNFTot', 'vCredPresIBS', 'vCredPresCBS'], '0');
+        $comRtc = 0;
+        $semRtc = [];
 
         foreach ($op['itens'] as $c) {
             if (isset($vistos[$c->n])) {
@@ -67,6 +76,50 @@ final class CalculadoraTributos
             if ($c->servico) {
                 $imp['issqn'] = $iss->calcular($c);
             }
+            $valorItem = null;
+            if (isset($c->regra['ibscbs']) && $c->servico) {
+                $c->alerta('Item de serviço: IBS/CBS ignorado');
+            } elseif (isset($c->regra['ibscbs']) && !$rtcRegime) {
+                $c->alerta('IBS/CBS não calculado para Simples Nacional/MEI (CRT ' . $op['crt'] . '): dispensado em 2026 e aguardando leiaute próprio');
+            } elseif (isset($c->regra['ibscbs']) && ($aliqRtc ??= ($aliqBuscada ? null : self::aliquotasDaTabela($op, $aliqBuscada))) === null) {
+                $e->add('operacao.aliquotas_ibscbs', 'Sem alíquota de IBS/CBS vigente em ' . ($op['data'] ?? '?') . ' para o município '
+                    . ($op['municipio_operacao'] ?? 'não informado') . ': cadastre na tabela da API ou informe aliquotas_ibscbs');
+                continue;
+            } elseif (isset($c->regra['ibscbs'])) {
+                $tabCClass ??= TabelaCClassTrib::tabela();
+                try {
+                    $classe = TabelaCClassTrib::exigir((string) $c->p('ibscbs', 'CST'), (string) $c->p('ibscbs', 'cClassTrib'), $op['data'], $tabCClass, $op['modelo']);
+                } catch (\App\Http\ApiException $x) {
+                    $e->add("$c->campo.regra.ibscbs.cClassTrib", $x->details[0]['mensagem'] ?? $x->getMessage());
+                    continue;
+                }
+                $r = IbsCbs::calcular($c, $imp, $aliqRtc, $classe);
+                if ($c->credPres !== null) {
+                    if (($classe['indCredPres'] ?? null) === false) {
+                        $msg = "cClassTrib {$classe['cClassTrib']} não admite crédito presumido (tabela cClassTrib)";
+                        if ($c->credPres['origem'] === 'item') {
+                            $e->add("$c->campo.credito_presumido", $msg);
+                            continue;
+                        }
+                        $c->alerta("$msg: crédito presumido da operação não aplicado neste item");
+                    } else {
+                        $cp = IbsCbs::creditoPresumido($c, $r['comValores'] ? $r['vBC'] : IbsCbs::base($c, $imp), $c->credPres);
+                        $r['grupo']['gCredPresOper'] = $cp['grupo'];
+                        $rt['vCredPresIBS'] = Dec::soma($rt['vCredPresIBS'], $cp['vIBS']);
+                        $rt['vCredPresCBS'] = Dec::soma($rt['vCredPresCBS'], $cp['vCBS']);
+                    }
+                }
+                $imp['ibscbs'] = IbsCbs::numeros($r['grupo']);
+                $vIBS = Dec::soma($r['vIBSUF'], $r['vIBSMun']);
+                $valorItem = IbsCbs::valorItem($c, $imp, $op['ano'], $vIBS, $r['vCBS']);
+                foreach (['vBC', 'vIBSUF', 'vIBSMun', 'vCBS', 'vDifUF', 'vDifMun', 'vDifCBS'] as $k) {
+                    $rt[$k] = Dec::soma($rt[$k], $r[$k]);
+                }
+                $rt['vNFTot'] = Dec::soma($rt['vNFTot'], $valorItem);
+                $comRtc++;
+            } elseif (!$c->servico) {
+                $semRtc[] = $c;
+            }
             $aprox = self::tributosAproximados($c);
             self::alertasOperacao($c, $op, $imp);
 
@@ -80,6 +133,9 @@ final class CalculadoraTributos
                 ],
                 'impostos' => self::ordenar($imp),
             ];
+            if ($valorItem !== null) {
+                $saida['valor_item'] = Dec::num($valorItem);
+            }
             if ($aprox !== null) {
                 $saida['valor_aproximado_tributos'] = Dec::num($aprox['total']);
                 $saida['tributos_aproximados'] = array_map([Dec::class, 'num'], $aprox);
@@ -94,6 +150,11 @@ final class CalculadoraTributos
             }
             $itens[] = $saida;
             self::acumular($t, $c, $imp, $aprox, $op['desconto_iss_condicionado']);
+        }
+        if ($comRtc > 0 && $semRtc !== []) {
+            foreach ($semRtc as $c) {
+                $e->add("$c->campo.cclasstrib", 'Informe o cClassTrib de todos os itens da nota (ou de nenhum)');
+            }
         }
         $e->throwIfAny();
 
@@ -116,8 +177,30 @@ final class CalculadoraTributos
                 'vDescIncond' => $t['sDescIncond'], 'vDescCond' => $t['sDescCond'],
             ]);
         }
+        if ($comRtc > 0) {
+            $f = fn(string $v) => Dec::num($v);
+            $totais['IBSCBSTot'] = [
+                'vBCIBSCBS' => $f($rt['vBC']),
+                'gIBS' => [
+                    'gIBSUF' => ['vDif' => $f($rt['vDifUF']), 'vDevTrib' => 0, 'vIBSUF' => $f($rt['vIBSUF'])],
+                    'gIBSMun' => ['vDif' => $f($rt['vDifMun']), 'vDevTrib' => 0, 'vIBSMun' => $f($rt['vIBSMun'])],
+                    'vIBS' => $f(Dec::soma($rt['vIBSUF'], $rt['vIBSMun'])), 'vCredPres' => $f($rt['vCredPresIBS']), 'vCredPresCondSus' => 0,
+                ],
+                'gCBS' => ['vDif' => $f($rt['vDifCBS']), 'vDevTrib' => 0, 'vCBS' => $f($rt['vCBS']), 'vCredPres' => $f($rt['vCredPresCBS']), 'vCredPresCondSus' => 0],
+            ];
+            $totais['vNFTot'] = $f($rt['vNFTot']);
+        }
+        // fotografia do que foi usado no IBS/CBS (alíquotas e versão da tabela de cClassTrib)
+        $rtcInfo = $comRtc === 0 ? null : [
+            'aliquotas' => ['pIBSUF' => Dec::num($aliqRtc['pIBSUF']), 'pIBSMun' => Dec::num($aliqRtc['pIBSMun']), 'pCBS' => Dec::num($aliqRtc['pCBS'])],
+            'origem_aliquotas' => $aliqRtc['origem'], 'municipio' => $op['municipio_operacao'],
+            'tabela_cclasstrib' => ['versao' => $tabCClass['versao'] ?? null, 'atualizado_em' => $tabCClass['atualizado_em'] ?? null],
+        ];
         $regime = in_array($op['crt'], [1, 4], true) ? 'simples_nacional' : 'normal';
         $alertas = [];
+        if ($rtcRegime && $comRtc === 0) {
+            $alertas[] = 'Regime normal: a nota sai sem o grupo IBS/CBS (informe o cclasstrib dos itens e as alíquotas); a SEFAZ passará a rejeitar (1115) quando a regra entrar em produção';
+        }
         if ($op['modelo'] === 65 && $op['uf_destino'] !== $op['uf']) {
             $alertas[] = 'NFC-e é sempre operação interna: uf_destino ignorada';
         }
@@ -127,7 +210,7 @@ final class CalculadoraTributos
         // o id identifica o resultado fiscal: não depende da memória de cálculo (?detalhar) nem dos alertas
         $semMemoria = array_map(fn(array $i) => array_diff_key($i, ['memoria_calculo' => 1, 'alertas' => 1]), $itens);
         $id = 'calc_' . substr(hash('sha256', json_encode([self::VERSAO, $op['modelo'], $op['crt'], $op['uf'], $op['uf_destino'],
-            $semMemoria, $totais], JSON_THROW_ON_ERROR)), 0, 32);
+            $op['ano'], $semMemoria, $totais], JSON_THROW_ON_ERROR)), 0, 32);
         return [
             'calculo_id' => $id,
             'versao_calculo' => self::VERSAO,
@@ -136,12 +219,20 @@ final class CalculadoraTributos
             'operacao' => [
                 'codigo' => $op['operacao_codigo'], 'tipo_pessoa' => $op['tipo_pessoa'],
                 'uf' => $op['uf'], 'uf_destino' => $op['uf_destino'], 'interestadual' => $op['modelo'] === 55 && $op['uf_destino'] !== $op['uf'],
-                'consumidor_final' => $op['consumidor_final'],
+                'consumidor_final' => $op['consumidor_final'], 'ano' => $op['ano'],
             ],
             'itens' => $itens,
             'totais' => $totais,
+        ] + ($rtcInfo === null ? [] : ['ibscbs' => $rtcInfo]) + [
             'alertas' => $alertas,
         ];
+    }
+
+    /** @param array<string,mixed> $op @return array<string,mixed>|null */
+    private static function aliquotasDaTabela(array $op, bool &$buscada): ?array
+    {
+        $buscada = true;
+        return AliquotasIbsCbs::buscar($op['data'] ?? date('Y-m-d'), $op['municipio_operacao']);
     }
 
     /** @return array{federal:string, estadual:string, municipal:string, total:string}|null */
@@ -219,7 +310,7 @@ final class CalculadoraTributos
     private static function ordenar(array $imp): array
     {
         $o = [];
-        foreach (['icms', 'ipi', 'pis', 'cofins', 'issqn'] as $k) {
+        foreach (['icms', 'ipi', 'pis', 'cofins', 'issqn', 'ibscbs'] as $k) {
             if (isset($imp[$k])) {
                 $o[$k] = $imp[$k];
             }

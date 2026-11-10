@@ -84,7 +84,7 @@ final class ModelConfigurationTest extends TestCase
 
     public function testCadastroDeServicosRecusadoEJsonExplicitoObrigatorio(): void
     {
-        $this->configure();$r=$this->authed('PUT','/api/v1/nfse/config',json_encode(['opcao_simples_nacional'=>2,'servicos'=>[]]));self::assertSame(422,$r->status);
+        $this->configure(4);$r=$this->authed('PUT','/api/v1/nfse/config',json_encode(['opcao_simples_nacional'=>2,'servicos'=>[]]));self::assertSame(422,$r->status);
         $r=$this->authed('PUT','/api/v1/nfse/config',json_encode(['opcao_simples_nacional'=>2]));self::assertSame(200,$r->status,$r->body);self::assertArrayNotHasKey('servicos',$this->json($r));
         $r=$this->authed('POST','/api/v1/nfse?dry_run=1',json_encode(['servico_id'=>'svc_antigo','valores'=>['servico'=>100]]));self::assertSame(422,$r->status);self::assertStringContainsString('servico_id',$r->body);
     }

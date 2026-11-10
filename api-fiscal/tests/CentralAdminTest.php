@@ -66,6 +66,30 @@ final class CentralAdminTest extends TestCase
         self::assertSame($config2,JsonStore::read(Tenant::path('config.json')));
         self::assertSame(['ambiente_nfe'=>2],JsonStore::read($path2));
     }
+    public function testSuporteAbrePortalDaEmpresaEscolhidaComOUsuarioLogado(): void
+    {
+        $s=$this->admin();
+        $tid=$this->json($this->sess($s,'POST','/api/v1/empresas',json_encode(['nome'=>'Cliente Suporte','cnpj'=>'11222333000181'])))['id'];
+        // sem empresa escolhida: 422; o corpo não troca o usuário nem o tipo
+        self::assertSame(422,$this->sess($s,'POST','/api/v1/portal/acessos','{}')->status);
+        $r=$this->sess($s,'POST','/api/v1/portal/acessos',json_encode(['usuario'=>['id'=>'x','nome'=>'Outro'],'tipo_usuario'=>'cliente']),['X-Empresa-Id'=>$tid]);
+        self::assertSame(201,$r->status,$r->body);
+        $token=substr($this->json($r)['url'],strpos($this->json($r)['url'],'#t=')+3);
+        $r=$this->call('POST','/api/v1/portal/sessao',json_encode(['token'=>$token]));
+        self::assertSame(200,$r->status,$r->body);$ctx=$this->json($r);
+        self::assertSame($tid,$ctx['empresa']['id']);
+        self::assertSame('suporte',$ctx['tipo_usuario']);
+        self::assertSame(['id'=>$s['user'],'nome'=>'Administrador','email'=>'admin@example.com'],$ctx['usuario']);
+        self::assertSame('Painel administrativo (suporte)',$ctx['sistema']);
+        // chave de API não pode se passar por suporte
+        $k=$this->json($this->sess($s,'POST','/api/v1/chaves',json_encode(['nome'=>'PDV']),['X-Empresa-Id'=>$tid]))['chave'];
+        $r=$this->call('POST','/api/v1/portal/acessos',json_encode(['usuario'=>['id'=>'1','nome'=>'PDV'],'tipo_usuario'=>'suporte']),['Authorization'=>'Bearer '.$k]);
+        self::assertSame(422,$r->status,$r->body);
+        // operador também abre
+        CentralAccess::createUser(['nome'=>'Operador','email'=>'op@example.com','senha'=>self::STRONG,'acesso_central'=>'operador']);
+        $op=$this->sessionFrom($this->call('POST','/api/v1/auth/login',json_encode(['email'=>'op@example.com','senha'=>self::STRONG])),'op@example.com');
+        self::assertSame(201,$this->sess($op,'POST','/api/v1/portal/acessos','{}',['X-Empresa-Id'=>$tid])->status);
+    }
     public function testOperatorsCannotManageUsersAndLastAdminCannotBeBlocked(): void
     {
         $s=$this->admin();$admin=$s['user'];

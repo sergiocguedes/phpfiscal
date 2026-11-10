@@ -22,6 +22,8 @@ use App\Tenancy\Tenant;
 final class Matriz
 {
     public const TIPOS_PESSOA = ['F', 'J', 'E'];
+    public const TIPOS_PERFIL = ['icms', 'piscofins'];
+    private const NOMES_TIPO = ['icms' => 'ICMS', 'piscofins' => 'PIS/COFINS'];
     public const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI',
         'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO', 'EX'];
     private const CODIGO = '/^[A-Za-z0-9_-]{1,30}$/D';
@@ -78,7 +80,7 @@ final class Matriz
         $e = new Errors();
         $nome = self::nome($in['nome'] ?? null, $e);
         $tipo = $in['tipo'] ?? null;
-        if (!in_array($tipo, ['icms', 'piscofins'], true)) {
+        if (!in_array($tipo, self::TIPOS_PERFIL, true)) {
             $e->add('tipo', 'icms ou piscofins');
         }
         $e->throwIfAny();
@@ -330,7 +332,7 @@ final class Matriz
             preg_match(self::CODIGO, $cod) ?: $e->add("perfis[$i].codigo", 'Código com 1 a 30 caracteres [A-Za-z0-9_-]');
             $nome = self::nome(is_array($p) ? ($p['nome'] ?? null) : null, $e, "perfis[$i].nome");
             $tipo = is_array($p) ? ($p['tipo'] ?? null) : null;
-            in_array($tipo, ['icms', 'piscofins'], true) ?: $e->add("perfis[$i].tipo", 'icms ou piscofins');
+            in_array($tipo, self::TIPOS_PERFIL, true) ?: $e->add("perfis[$i].tipo", 'icms ou piscofins');
             $novoCad['perfis'][$cod] = ['codigo' => $cod, 'nome' => $nome, 'tipo' => $tipo, 'atualizado_em' => date('c')];
         }
         foreach ($ops as $i => $o) {
@@ -526,14 +528,17 @@ final class Matriz
         if ($p === null) {
             $e->add('perfil', 'Perfil não cadastrado');
         } elseif ($p['tipo'] !== $tipo) {
-            $e->add('perfil', "Perfil de " . ($p['tipo'] === 'icms' ? 'ICMS' : 'PIS/COFINS') . ': use um perfil de ' . ($tipo === 'icms' ? 'ICMS' : 'PIS/COFINS'));
+            $e->add('perfil', 'Perfil de ' . (self::NOMES_TIPO[$p['tipo']] ?? $p['tipo']) . ': use um perfil de ' . self::NOMES_TIPO[$tipo]);
         }
         in_array($operacao, array_column($cad['operacoes'], 'codigo'), true) ?: $e->add('operacao', 'Operação não cadastrada');
     }
 
     private static function temRegras(string $tipo, ?string $perfil, ?string $operacao): bool
     {
-        return $tipo === 'icms' ? self::listarIcms($perfil, $operacao, null) !== [] : self::listarPisCofins($perfil, $operacao) !== [];
+        return match ($tipo) {
+            'icms' => self::listarIcms($perfil, $operacao, null) !== [],
+            default => self::listarPisCofins($perfil, $operacao) !== [],
+        };
     }
 
     private static function arqIcms(string $perfil, string $operacao, string $uf, string $tipo): string

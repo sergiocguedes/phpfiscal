@@ -43,6 +43,15 @@ final class RegraDetalhe
         '98' => 'Outras operações de entrada', '99' => 'Outras operações',
     ];
 
+    /** CST do IBS/CBS (Informe Técnico 2025.002). */
+    public const CST_IBSCBS = [
+        '000' => 'Tributação integral', '010' => 'Tributação com alíquotas uniformes', '011' => 'Tributação com alíquotas uniformes reduzidas',
+        '200' => 'Alíquota reduzida', '220' => 'Alíquota fixa', '221' => 'Alíquota fixa proporcional', '222' => 'Redução de base de cálculo',
+        '400' => 'Isenção', '410' => 'Imunidade e não incidência', '510' => 'Diferimento', '515' => 'Diferimento com redução de alíquota',
+        '550' => 'Suspensão', '620' => 'Tributação monofásica', '800' => 'Transferência de crédito', '810' => 'Ajuste de IBS na ZFM',
+        '811' => 'Ajustes', '820' => 'Tributação em documento específico', '830' => 'Exclusão da base de cálculo',
+    ];
+
     /** Rótulo e, quando é código, o significado de cada valor. */
     private const CAMPOS = [
         'icms' => [
@@ -67,10 +76,19 @@ final class RegraDetalhe
         'servico' => ['codigo_tributacao_nacional' => ['Código de tributação nacional'], 'codigo_tributacao_municipal' => ['Código de tributação municipal'],
             'nbs' => ['NBS'], 'codigo_interno' => ['Código interno do serviço']],
         'iss' => [
-            'tributacao_iss' => ['Tributação do ISS', RegrasIss::TRIBUTACAO],
-            'tipo_imunidade' => ['Tipo de imunidade', RegrasIss::IMUNIDADE],
-            'retencao_iss' => ['Retenção do ISS', RegrasIss::RETENCAO],
             'aliquota_iss' => ['Alíquota do ISS (%)'],
+        ],
+        'federais' => [
+            'cst_pis_cofins' => ['CST do PIS/COFINS', RegrasIss::CST_PIS_COFINS_DESCRICAO + self::CST_PISCOFINS],
+            'aliquota_pis' => ['Alíquota do PIS (%)'], 'aliquota_cofins' => ['Alíquota da COFINS (%)'],
+            'aliquota_irrf' => ['Alíquota do IRRF (%)'], 'aliquota_csll' => ['Alíquota da CSLL (%)'],
+            'tipo_retencao' => ['Retenção de PIS/COFINS/CSLL', RegrasIss::RETENCAO_PIS_COFINS],
+        ],
+        'ibs_cbs' => [
+            'indicador_operacao' => ['Indicador da operação de fornecimento'], 'classificacao_tributaria' => ['cClassTrib'],
+            'percentual_diferimento' => ['Diferimento do IBS/CBS (%)'],
+            'operacao_onerosa' => ['Operação onerosa', ['1' => 'Sim', '' => 'Não']],
+            'servico_exterior' => ['Serviço para o exterior', ['1' => 'Sim', '' => 'Não']],
         ],
     ];
 
@@ -118,15 +136,16 @@ final class RegraDetalhe
         return $r + [
             'servico_descricao' => $sv['descricao'] ?? null,
             'item_lc116' => $sv['item_lc116'] ?? null,
-            'tributacao_iss_descricao' => RegrasIss::TRIBUTACAO[(string) ($r['iss']['tributacao_iss'] ?? '')] ?? null,
-            'retencao_iss_descricao' => RegrasIss::RETENCAO[(string) ($r['iss']['retencao_iss'] ?? '')] ?? null,
+            'tipo_pessoa_descricao' => RegrasIss::TIPOS_PESSOA[(string) ($r['tipo_pessoa'] ?? '')] ?? null,
+            'retencao_federais_descricao' => isset($r['federais']) ? (RegrasIss::RETENCAO_PIS_COFINS[(string) ($r['federais']['tipo_retencao'] ?? '')] ?? null) : null,
         ];
     }
 
     /** @param array<string,mixed> $r @return array<string,mixed> */
     public static function detalheIss(array $r): array
     {
-        $out = self::resumoIss($r) + ['campos' => self::campos($r, ['servico', 'iss'])];
+        $r['iss'] = array_intersect_key($r['iss'] ?? [], ['aliquota_iss' => true]); // regras antigas: só a alíquota vale
+        $out = self::resumoIss($r) + ['campos' => self::campos($r, ['servico', 'iss', 'federais', 'ibs_cbs'])];
         foreach ($out['campos'] as &$c) {
             if ($c['campo'] === 'codigo_tributacao_nacional') {
                 $c['valor_descricao'] = $out['servico_descricao'];

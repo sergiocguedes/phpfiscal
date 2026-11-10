@@ -80,10 +80,10 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
     }
 
     /** Configuração do emitente via sessão. @param array{cookie:string, csrf:string} $s */
-    protected function configureSession(array $s, string $cnpj = '11222333000181', string $razao = 'EMPRESA A LTDA'): void
+    protected function configureSession(array $s, string $cnpj = '11222333000181', string $razao = 'EMPRESA A LTDA', int $crt = 1): void
     {
         $r = $this->sess($s, 'PUT', '/api/v1/config', (string) json_encode([
-            'cnpj' => $cnpj, 'ie' => '111111111111', 'razao_social' => $razao, 'uf' => 'SP', 'ambiente' => 2, 'crt' => 1,
+            'cnpj' => $cnpj, 'ie' => '111111111111', 'razao_social' => $razao, 'uf' => 'SP', 'ambiente' => 2, 'crt' => $crt,
             'endereco' => ['logradouro' => 'Rua das Flores', 'numero' => '100', 'bairro' => 'Centro', 'codigo_municipio' => '3550308', 'municipio' => 'Sao Paulo', 'cep' => '01001000'],
             'serie' => 1, 'proximo_numero' => 1,
         ]));
@@ -122,7 +122,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
         return json_decode($r->body, true, 512, JSON_THROW_ON_ERROR);
     }
 
-    protected function configure(): void
+    protected function configure(int $crt = 1): void
     {
         $r = $this->authed('PUT', '/api/v1/config', (string) json_encode([
             'cnpj' => '11222333000181',
@@ -130,7 +130,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
             'razao_social' => 'EMPRESA TESTE LTDA',
             'uf' => 'SP',
             'ambiente' => 2,
-            'crt' => 1,
+            'crt' => $crt,
             'endereco' => [
                 'logradouro' => 'Rua das Flores', 'numero' => '100', 'bairro' => 'Centro',
                 'codigo_municipio' => '3550308', 'municipio' => 'Sao Paulo', 'cep' => '01001000',

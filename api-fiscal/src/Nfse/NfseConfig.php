@@ -36,7 +36,20 @@ final class NfseConfig
     {
         $c=JsonStore::read(self::file());
         if($c===null){$shared=JsonStore::read(Tenant::path('nfse-prestador.json'));if($shared!==null){$c=$shared+['serie'=>1,'proximo_numero'=>1,'municipio_convenio_ativo'=>null];}}
-        if($c!==null){unset($c['servicos']);$c['ambiente']=\App\Tenancy\FiscalScope::ambiente(Tenant::id());}return $c;
+        if($c!==null){unset($c['servicos']);$c['ambiente']=\App\Tenancy\FiscalScope::ambiente(Tenant::id());
+            // o regime da empresa manda: CRT alterado nos dados fiscais vale na hora para a NFS-e
+            $op=self::opcaoSimples((\App\Nfe\ConfigService::get()??[])['crt']??null);
+            if($op!==null){$c['opcao_simples_nacional']=$op;if($op!==3){unset($c['regime_apuracao_sn']);}}}
+        return $c;
+    }
+
+    /**
+     * opSimpNac da NFS-e a partir do CRT da empresa: 3 regime normal → 1 não optante; 4 MEI → 2 MEI;
+     * 1 Simples Nacional e 2 Simples com excesso de sublimite → 3 ME/EPP.
+     */
+    public static function opcaoSimples(mixed $crt): ?int
+    {
+        return [1 => 3, 2 => 3, 3 => 1, 4 => 2][(int) $crt] ?? null;
     }
 
     /** @return array<string,mixed> */
@@ -58,6 +71,7 @@ final class NfseConfig
                 'configurado' => false,
                 'ambiente' => \App\Tenancy\FiscalScope::ambiente(Tenant::id()),
                 'codigo_municipio' => $emit['endereco']['codigo_municipio'] ?? null,
+                'opcao_simples_nacional' => self::opcaoSimples($emit['crt'] ?? null),
             ];
         }
         $c['configurado'] = true;
@@ -98,9 +112,13 @@ final class NfseConfig
         }
         $out['codigo_municipio'] = $cMun;
 
-        $op = $in['opcao_simples_nacional'] ?? null;
-        if (!in_array($op, [1, 2, 3], true)) {
-            $e->add('opcao_simples_nacional', 'Use 1 (não optante), 2 (MEI) ou 3 (Simples Nacional ME/EPP)');
+        // opção pelo Simples (opSimpNac) vem do regime tributário da empresa (CRT dos dados fiscais)
+        $op = self::opcaoSimples($emit['crt'] ?? null);
+        $inOp = $in['opcao_simples_nacional'] ?? null;
+        if ($op === null) {
+            $e->add('opcao_simples_nacional', 'Cadastre o regime tributário (CRT) nos dados fiscais da empresa');
+        } elseif ($inOp !== null && $inOp !== $op) {
+            $e->add('opcao_simples_nacional', "Vem do regime tributário da empresa (CRT {$emit['crt']} → $op): altere o regime nos dados fiscais (PUT /config)");
         }
         $out['opcao_simples_nacional'] = $op;
 
@@ -121,6 +139,45 @@ final class NfseConfig
             $e->add('regime_especial', 'MEI e ME/EPP com apuração pelo Simples devem usar 0 (nenhum) — rejeições E0174/E0175.');
         }
         $out['regime_especial'] = $regEsp;
+
+        // Tributação de serviços da empresa (aba "Tributação Serviços" do ClickPDV): padrões do ISSQN na emissão.
+        // Ordem na NFS-e: JSON da nota > regra de ISS > empresa.
+        $trib = $in['tributacao_iss'] ?? 1;
+        if (!in_array($trib, [1, 2, 4], true)) {
+            $e->add('tributacao_iss', '1 (operação tributável), 2 (imunidade) ou 4 (não incidência)');
+        }
+        $out['tributacao_iss'] = $trib;
+        $imun = $in['tipo_imunidade'] ?? null;
+        if ($trib === 2) {
+            $imun ??= 0;
+            in_array($imun, [0, 1, 2, 3, 4, 5], true) ? $out['tipo_imunidade'] = $imun
+                : $e->add('tipo_imunidade', 'Tipo de imunidade de 0 a 5 (CF/88 art. 150, VI)');
+        } elseif ($imun !== null) {
+            $e->add('tipo_imunidade', 'Só com tributacao_iss 2 (imunidade)');
+        }
+        $ret = $in['retencao_iss'] ?? 1;
+        if (!in_array($ret, [1, 2], true)) {
+            $e->add('retencao_iss', '1 (não retido) ou 2 (retido pelo tomador)');
+        } elseif ($ret === 2 && $op === 2) {
+            $e->add('retencao_iss', 'MEI não pode ter ISS retido (rejeição E0583)');
+        } elseif ($ret === 2 && $regEsp !== 0) {
+            $e->add('retencao_iss', 'Prestador com regime especial de tributação não pode ter ISS retido (rejeição E0588)');
+        } elseif ($ret === 2 && $trib !== 1) {
+            $e->add('retencao_iss', 'Serviço imune ou sem incidência não tem retenção (rejeição E0580)');
+        }
+        $out['retencao_iss'] = $ret;
+        $susp = $in['suspensao'] ?? null;
+        if ($susp !== null) {
+            if (!is_array($susp) || !in_array($susp['tipo'] ?? null, [1, 2], true)
+                || !is_string($susp['numero_processo'] ?? null) || !preg_match('/^[0-9]{30}$/D', $susp['numero_processo'])
+                || array_diff(array_keys($susp), ['tipo', 'numero_processo']) !== []) {
+                $e->add('suspensao', 'null (nenhuma) ou {tipo: 1 judicial ou 2 administrativo, numero_processo: 30 dígitos}');
+            } elseif ($trib !== 1) {
+                $e->add('suspensao', 'Suspensão da exigibilidade só com operação tributável (tributacao_iss 1)');
+            } else {
+                $out['suspensao'] = ['tipo' => $susp['tipo'], 'numero_processo' => $susp['numero_processo']];
+            }
+        }
 
         $amb = $in['ambiente'] ?? \App\Tenancy\FiscalScope::ambiente(Tenant::id());
         if ($amb !== \App\Tenancy\FiscalScope::ambiente(Tenant::id())) {

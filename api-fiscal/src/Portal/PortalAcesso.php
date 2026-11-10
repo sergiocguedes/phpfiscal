@@ -35,6 +35,8 @@ final class PortalAcesso
 {
     public const PERFIS = ['fiscal', 'consulta'];
     public const TIPOS_USUARIO = ['cliente', 'contador'];
+    /** Acesso de suporte: aberto pelo painel administrativo por um usuário central (administrador ou operador). */
+    public const SUPORTE = 'suporte';
     public const ABAS = ['inicio', 'perfis', 'operacoes', 'regras-icms', 'regras-piscofins', 'regras-iss', 'simulador'];
 
     public static function cookieName(): string
@@ -54,10 +56,21 @@ final class PortalAcesso
     public static function criar(Principal $p, array $in): array
     {
         $e = new Errors();
+        // Suporte: sessão do painel de um usuário central (admin/operador) com a empresa escolhida (X-Empresa-Id).
+        // O usuário do portal é o próprio usuário logado, nunca o informado no corpo, e fica na auditoria.
+        $suporte = $p->via === Principal::VIA_SESSION && in_array($p->acessoCentral, ['admin', 'operador'], true);
+        if ($suporte) {
+            $quem = UserStore::get((string) $p->userId) ?? [];
+            $in['usuario'] = ['id' => (string) $p->userId, 'nome' => mb_substr((string) ($quem['nome'] ?? 'Suporte'), 0, 80)]
+                + (isset($quem['email']) ? ['email' => $quem['email']] : []);
+            $in['sistema'] = 'Painel administrativo (suporte)';
+        } elseif (($in['tipo_usuario'] ?? null) === self::SUPORTE) {
+            $e->add('tipo_usuario', 'O acesso de suporte só é aberto pelo painel administrativo');
+        }
         $perfil = $in['perfil'] ?? 'fiscal';
         in_array($perfil, self::PERFIS, true) ?: $e->add('perfil', 'fiscal ou consulta');
-        $tipo = $in['tipo_usuario'] ?? 'cliente';
-        in_array($tipo, self::TIPOS_USUARIO, true) ?: $e->add('tipo_usuario', 'cliente ou contador');
+        $tipo = $suporte ? self::SUPORTE : ($in['tipo_usuario'] ?? 'cliente');
+        $suporte || in_array($tipo, self::TIPOS_USUARIO, true) || $tipo === self::SUPORTE ?: $e->add('tipo_usuario', 'cliente ou contador');
         $u = is_array($in['usuario'] ?? null) ? $in['usuario'] : [];
         $usuario = [
             'id' => Validate::text($u['id'] ?? null, 1, 60) ?? ($e->add('usuario.id', 'Identificador do usuário no sistema (1 a 60 caracteres)') ?? ''),
@@ -91,7 +104,8 @@ final class PortalAcesso
             'expira_em' => time() + $validade, 'usado_em' => null,
         ];
         JsonStore::write("portal/acessos/$hash.json", $acesso);
-        Logger::audit('portal.acesso', 'criado', ['id' => $acesso['id'], 'perfil' => $perfil, 'usuario' => $usuario['id'], 'sistema' => $sistema]);
+        Logger::audit('portal.acesso', 'criado', ['id' => $acesso['id'], 'perfil' => $perfil, 'usuario' => $usuario['id'], 'sistema' => $sistema,
+            'tipo_usuario' => $tipo, 'empresa' => $tenant]);
         if (random_int(1, 50) === 1) {
             self::gc();
         }

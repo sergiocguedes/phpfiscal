@@ -143,3 +143,6 @@ summary{cursor:pointer;color:var(--brand);font-weight:600;font-size:13px}
 p.hint{margin:12px 0 0}
 .lead code{font-size:12px;background:var(--line, #eef0f4);padding:1px 5px;border-radius:4px}
 @media (max-width:900px){.form-grid .span2{grid-column:1/-1}}
+[hidden]{display:none!important}
+.support-bar{background:#fff4e5;color:#7a4b00;border-bottom:1px solid #f0d3a6;padding:8px 24px;font-size:13px}
+label.check{flex-direction:row;align-items:center;gap:8px;font-weight:500;align-self:end}

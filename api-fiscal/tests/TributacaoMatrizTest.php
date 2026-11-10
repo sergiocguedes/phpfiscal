@@ -236,12 +236,27 @@ final class TributacaoMatrizTest extends TestCase
     {
         $this->assertSame(['total' => 0, 'regras' => []], $this->req('GET', '/tributacao/regras-iss'));
         $r = $this->req('PUT', '/tributacao/regras-iss/CURSO', ['descricao' => 'Curso online retido',
-            'servico' => ['codigo_tributacao_nacional' => '08.02.01', 'nbs' => '122051900'],
-            'iss' => ['tributacao_iss' => 1, 'retencao_iss' => 2, 'aliquota_iss' => 2]]);
+            'servico' => ['codigo_tributacao_nacional' => '08.02.01', 'nbs' => '122051900'], 'iss' => ['aliquota_iss' => 2]]);
         $this->assertSame('080201', $r['servico']['codigo_tributacao_nacional']);
-        $this->assertSame('Retido pelo tomador', $r['retencao_iss_descricao']);
-        $this->req('PUT', '/tributacao/regras-iss/IMUNE', ['descricao' => 'Templo',
-            'servico' => ['codigo_tributacao_nacional' => '080201'], 'iss' => ['tributacao_iss' => 2, 'tipo_imunidade' => 2]]);
+        // tributação, retenção e imunidade ficam na empresa: na regra são recusadas
+        $erro = $this->req('PUT', '/tributacao/regras-iss/IMUNE', ['descricao' => 'Templo', 'servico' => ['codigo_tributacao_nacional' => '080201'],
+            'iss' => ['tributacao_iss' => 2, 'retencao_iss' => 1, 'tipo_imunidade' => 2]], 422);
+        foreach (['iss.tributacao_iss', 'iss.retencao_iss', 'iss.tipo_imunidade'] as $k) {
+            $this->assertContains($k, $this->campos($erro));
+        }
+        $this->req('PUT', '/tributacao/regras-iss/IMUNE', ['descricao' => 'Templo', 'servico' => ['codigo_tributacao_nacional' => '080201']]);
+
+        // copiar regra
+        $c = $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => 'CURSO', 'destino' => 'CURSO2'], 201);
+        $this->assertSame('Cópia de Curso online retido', $c['descricao']);
+        $this->assertSame(['aliquota_iss' => 2], $c['iss']);
+        $this->assertSame('122051900', $c['servico']['nbs']);
+        $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => 'CURSO', 'destino' => 'CURSO2'], 409);
+        $c = $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => 'CURSO', 'destino' => 'CURSO2', 'descricao' => 'Outra', 'sobrescrever' => true], 201);
+        $this->assertSame('Outra', $c['descricao']);
+        $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => 'NADA', 'destino' => 'X'], 404);
+        $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => 'CURSO', 'destino' => 'CURSO'], 422);
+        $this->req('DELETE', '/tributacao/regras-iss/CURSO2', null, 204);
 
         $l = $this->req('GET', '/tributacao/regras-iss');
         $this->assertSame(2, $l['total']);
@@ -252,16 +267,36 @@ final class TributacaoMatrizTest extends TestCase
 
         $d = $this->req('GET', '/tributacao/regras-iss/IMUNE');
         $campos = array_column($d['campos'], null, 'campo');
-        $this->assertSame('Imunidade', $campos['tributacao_iss']['valor_descricao']);
-        $this->assertSame('Templos de qualquer culto', $campos['tipo_imunidade']['valor_descricao']);
-        $this->assertSame('Não retido', $campos['retencao_iss']['valor_descricao']);
+        $this->assertArrayNotHasKey('tributacao_iss', $campos);
+        $this->assertArrayNotHasKey('tipo_imunidade', $campos);
+        $this->assertArrayNotHasKey('retencao_iss', $campos);
         $this->assertNotNull($campos['codigo_tributacao_nacional']['valor_descricao']);
         $this->req('GET', '/tributacao/regras-iss/NADA', null, 404);
 
+        // campos do IMPOSTO_ISS do ClickPDV: PIS/COFINS do serviço, IRRF, CSLL, retenção, IBS/CBS e tipo de pessoa
+        $r = $this->req('PUT', '/tributacao/regras-iss/PJ', ['descricao' => 'Serviço PJ', 'tipo_pessoa' => 'J',
+            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
+            'federais' => ['cst_pis_cofins' => '01', 'aliquota_pis' => 0.65, 'aliquota_cofins' => 3, 'aliquota_irrf' => 1.5, 'aliquota_csll' => 1, 'tipo_retencao' => 4],
+            'ibs_cbs' => ['indicador_operacao' => '100301', 'classificacao_tributaria' => '000001', 'percentual_diferimento' => 0, 'servico_exterior' => true]]);
+        $this->assertSame('Pessoa jurídica', $r['tipo_pessoa_descricao']);
+        $this->assertSame('PIS/COFINS retidos, CSLL não retido', $r['retencao_federais_descricao']);
+        $this->assertSame(['indicador_operacao' => '100301', 'classificacao_tributaria' => '000001', 'percentual_diferimento' => 0,
+            'operacao_onerosa' => true, 'servico_exterior' => true], $r['ibs_cbs']);
+        $c = array_column($this->req('GET', '/tributacao/regras-iss/PJ')['campos'], null, 'campo');
+        $this->assertSame('Alíquota do IRRF (%)', $c['aliquota_irrf']['rotulo']);
+        $this->assertSame('Tributável com alíquota básica', $c['cst_pis_cofins']['valor_descricao']);
+        $erro = $this->req('PUT', '/tributacao/regras-iss/X', ['descricao' => 'X', 'tipo_pessoa' => 'E',
+            'servico' => ['codigo_tributacao_nacional' => '080201'], 'federais' => ['cst_pis_cofins' => 1, 'tipo_retencao' => 10],
+            'ibs_cbs' => ['indicador_operacao' => '1003', 'operacao_onerosa' => 'S']], 422);
+        $campos = array_column($erro['erro']['detalhes'], 'campo');
+        foreach (['tipo_pessoa', 'federais.cst_pis_cofins', 'federais.tipo_retencao', 'ibs_cbs.indicador_operacao', 'ibs_cbs.operacao_onerosa'] as $k) {
+            $this->assertContains($k, $campos);
+        }
+
         // validações: serviço inexistente, imune com retenção e alíquota, alíquota acima de 5%, campo estranho
         $d = $this->req('PUT', '/tributacao/regras-iss/X', ['descricao' => 'X', 'servico' => ['codigo_tributacao_nacional' => '999999'],
-            'iss' => ['tributacao_iss' => 2, 'retencao_iss' => 2, 'aliquota_iss' => 2, 'outro' => 1]], 422);
-        foreach (['servico.codigo_tributacao_nacional', 'iss.retencao_iss', 'iss.aliquota_iss', 'iss.outro'] as $c) {
+            'iss' => ['aliquota_iss' => 7, 'outro' => 1]], 422);
+        foreach (['servico.codigo_tributacao_nacional', 'iss.aliquota_iss', 'iss.outro'] as $c) {
             $this->assertContains($c, $this->campos($d));
         }
         $d = $this->req('PUT', '/tributacao/regras-iss/X', ['descricao' => 'X', 'servico' => ['codigo_tributacao_nacional' => '080201'],
@@ -269,7 +304,7 @@ final class TributacaoMatrizTest extends TestCase
         $this->assertContains('iss.aliquota_iss', $this->campos($d));
 
         $this->req('DELETE', '/tributacao/regras-iss/IMUNE', null, 204);
-        $this->assertSame(1, $this->req('GET', '/tributacao/regras-iss')['total']);
+        $this->assertSame(2, $this->req('GET', '/tributacao/regras-iss')['total']);
         $this->req('DELETE', '/tributacao/regras-iss/IMUNE', null, 404);
     }
 

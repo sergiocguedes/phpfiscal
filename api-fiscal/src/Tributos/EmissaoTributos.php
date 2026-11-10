@@ -23,13 +23,16 @@ use App\Support\RequestContext;
  * - Valor final informado na regra (ajuste manual) exige papel owner ou fiscal; fica no audit log e no registro.
  * - Pagamento único sem "valor" recebe o total calculado (vNF), que o sistema não conhece antes do cálculo.
  * - Perfis (perfil_icms, perfil_piscofins, origem no item; calculo_tributos.operacao): regra da matriz da empresa.
+ * - IBS/CBS: cclasstrib no item e calculo_tributos.aliquotas_ibscbs {pIBSUF, pIBSMun, pCBS} informadas pelo sistema.
+ * - IBS/CBS calculado (regime normal) vira itens[].impostos.ibscbs, valor_item e reforma_tributaria (totais), montados e
+ *   validados no XSD pelo mesmo caminho do modo informado. RTC informada pelo sistema prevalece sobre a calculada.
  *   Tipo de pessoa do destinatário (CNPJ J, CPF F, estrangeiro E). natureza_operacao padrão = nome da operação.
  */
 final class EmissaoTributos
 {
-    private const OPCOES = ['calculo_id', 'operacao', 'tipo_pessoa', 'excluir_icms_base_piscofins'];
+    private const OPCOES = ['calculo_id', 'operacao', 'tipo_pessoa', 'excluir_icms_base_piscofins', 'aliquotas_ibscbs', 'credito_presumido'];
     /** Campos do item só usados no cálculo (não vão para o montador da NF-e). */
-    private const CAMPOS_CALCULO = ['regra', 'perfil_icms', 'perfil_piscofins', 'origem', 'qtd_tributavel_unidade', 'valor_pauta_st'];
+    private const CAMPOS_CALCULO = ['regra', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido', 'origem', 'qtd_tributavel_unidade', 'valor_pauta_st'];
     /** Grupos de impostos que podem vir junto com a regra (Reforma Tributária informada). */
     private const IMPOSTOS_COM_REGRA = ['ibscbs', 'is'];
 
@@ -89,8 +92,8 @@ final class EmissaoTributos
             if ($regra !== null) {
                 $e['regra'] = $regra;
             }
-            foreach (['desconto', 'frete', 'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil_icms', 'perfil_piscofins'] as $k) {
-                if (isset($it[$k])) {
+            foreach (['desconto', 'frete', 'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido'] as $k) {
+                if (isset($it[$k]) || ($k === 'credito_presumido' && array_key_exists($k, $it))) {
                     $e[$k] = $it[$k];
                 }
             }
@@ -106,11 +109,16 @@ final class EmissaoTributos
             'consumidor_final' => (int) ($nota['consumidor_final'] ?? 1) === 1,
             'contribuinte_icms' => (int) ($dest['indicador_ie'] ?? 9) === 1,
         ];
+        // IBS/CBS: alíquotas do município de destino; sem destinatário com endereço, a API usa o município do emitente
+        $munDest = $dest['endereco']['codigo_municipio'] ?? null;
+        if (is_string($munDest) && preg_match('/^\d{7}$/D', $munDest)) {
+            $operacao['municipio_destino'] = $munDest;
+        }
         $ufDest = $dest['endereco']['uf'] ?? null;
         if ($modelo === 55 && is_string($ufDest) && $ufDest !== '') {
             $operacao['uf_destino'] = strtoupper($ufDest);
         }
-        foreach (['excluir_icms_base_piscofins'] as $k) {
+        foreach (['excluir_icms_base_piscofins', 'aliquotas_ibscbs', 'credito_presumido'] as $k) {
             if (array_key_exists($k, $opcoes)) {
                 $operacao[$k] = $opcoes[$k];
             }
@@ -150,6 +158,10 @@ final class EmissaoTributos
             Logger::audit('tributos.ajuste_manual', 'aplicado', ['calculo_id' => $calc['calculo_id'], 'ajustes' => $ajustes]);
         }
 
+        // IBS/CBS calculado: vai para o XML pelo mesmo caminho do modo informado (grupos validados no XSD).
+        // Se a nota já trouxe a RTC informada (reforma_tributaria ou impostos.ibscbs), ela prevalece.
+        $rtcInformada = isset($nota['reforma_tributaria']) || array_filter($itens, fn($i) => isset($i['impostos']['ibscbs']) || isset($i['impostos']['is'])) !== [];
+        $rtcCalculada = !$rtcInformada && isset($calc['totais']['IBSCBSTot']);
         foreach ($calc['itens'] as $k => $r) {
             $orig = $itens[$k];
             $rtc = array_intersect_key(is_array($orig['impostos'] ?? null) ? $orig['impostos'] : [], array_flip(self::IMPOSTOS_COM_REGRA));
@@ -157,11 +169,23 @@ final class EmissaoTributos
                 unset($orig[$campo]);
             }
             $orig['cfop'] ??= $r['cfop'];
-            $orig['impostos'] = $r['impostos'] + $rtc;
+            $impostos = $r['impostos'];
+            unset($impostos['ibscbs']);
+            if ($rtcCalculada && isset($r['impostos']['ibscbs'])) {
+                $impostos['ibscbs'] = IbsCbs::paraXml($r['impostos']['ibscbs']);
+                $orig['valor_item'] = Dec::fixo(Dec::de($r['valor_item']) ?? '0', 2);
+            }
+            $orig['impostos'] = $impostos + $rtc;
             if (isset($r['valor_aproximado_tributos']) && !isset($orig['valor_aproximado_tributos'])) {
                 $orig['valor_aproximado_tributos'] = $r['valor_aproximado_tributos'];
             }
             $nota['itens'][$k] = $orig;
+        }
+        if ($rtcCalculada) {
+            $nota['reforma_tributaria'] = ['modo' => 'informado', 'totais' => [
+                'IBSCBSTot' => IbsCbs::paraXml($calc['totais']['IBSCBSTot']),
+                'vNFTot' => Dec::fixo(Dec::de($calc['totais']['vNFTot']) ?? '0', 2),
+            ]];
         }
         // natureza da operação: o nome da operação da matriz, quando a nota não informa
         if (!isset($nota['natureza_operacao']) && $calc['operacao']['codigo'] !== null) {

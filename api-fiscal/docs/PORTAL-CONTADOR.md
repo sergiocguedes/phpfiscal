@@ -58,6 +58,8 @@ Resposta `201`:
 
 A empresa da sessão é sempre a da chave de API; não há como trocar de empresa dentro do portal.
 
+**Suporte:** o administrador ou operador do painel abre o portal de qualquer empresa ativa pelo botão **Abrir Portal Fiscal**. A mesma rota, chamada com a sessão do painel e `X-Empresa-Id`, ignora `usuario` e `tipo_usuario` do corpo: usa o usuário logado e o tipo `suporte` (exibido no portal com uma faixa de aviso). Pedidos com chave de API e `tipo_usuario: suporte` recebem 422.
+
 ### Exemplos prontos
 
 - Delphi: `examples/delphi/AtalhoPortalFiscal.pas` (usa `FiscalApiCliente.pas` e o mesmo INI).
@@ -69,7 +71,7 @@ A sessão do portal só é aceita nas rotas marcadas para ele. Qualquer outra re
 
 | Liberado | Bloqueado |
 | --- | --- |
-| `GET /tributacao/...` (cadastro, regras de ICMS, PIS/COFINS e ISS) e `GET /nfse/servicos-nacionais` (lista pública) | emissão NF-e, NFC-e, NFS-e e PDV |
+| `GET /tributacao/...` (cadastro, regras de ICMS, PIS/COFINS e ISS e tabela de cClassTrib) e `GET /nfse/servicos-nacionais` (lista pública) | emissão NF-e, NFC-e, NFS-e e PDV |
 | escrita em `/tributacao/...` (somente perfil `fiscal`) | cancelamento, inutilização, carta de correção |
 | `POST /tributos/calcular` (simulador) | configuração da empresa e certificado |
 | `GET /portal/contexto`, `POST /portal/sair` | gerar novos acessos (`POST /portal/acessos`) |
@@ -102,8 +104,8 @@ Online, com tudo em `contador.meuclickonline.com.br`, basta `APP_URL=https://con
 - **Perfis de tributação**, **Operações**: listagem e manutenção.
 - **Regras de ICMS**: listagem com filtros, manutenção com campos por CST/CSOSN, cópia para várias UFs, tipos de pessoa, perfis e operações.
 - **Regras de PIS/COFINS**: listagem e manutenção.
-- **Regras de ISS (NFS-e)**: listagem e manutenção, com busca na lista nacional de serviços.
-- **Simulador**: calcula uma venda com as regras gravadas (mesmo motor da emissão).
+- **Regras de ISS (NFS-e)**: listagem, manutenção e cópia de regra, com busca na lista nacional de serviços, tipo de pessoa, PIS/COFINS do serviço, IRRF, CSLL, tipo de retenção e os dados de IBS/CBS (indicador da operação, cClassTrib, diferimento, operação onerosa, serviço no exterior).
+- **Simulador**: calcula uma venda com as regras gravadas (mesmo motor da emissão), inclusive IBS/CBS pelo cClassTrib; as alíquotas de IBS/CBS são opcionais (vazias = tabela de alíquotas da API).
 
 Em breve: notas fiscais (consulta, XML, DANFE) e relatórios.
 

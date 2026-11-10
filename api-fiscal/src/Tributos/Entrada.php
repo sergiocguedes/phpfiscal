@@ -39,6 +39,8 @@ final class Entrada
         'iss' => ['aliquota' => 4, 'cMunFG' => '/^\d{7}$/', 'cListServ' => '/^\d{2}\.\d{2}$/', 'indISS' => '/^[1-7]$/',
             'indIncentivo' => '/^[12]$/', 'vBC' => 2, 'vISSQN' => 2],
         'ibpt' => ['federal' => 4, 'estadual' => 4, 'municipal' => 4],
+        // Reforma Tributária: cClassTrib do produto (CST, redução e vigência vêm da tabela local) e diferimento (CST 510)
+        'ibscbs' => ['CST' => '/^\d{3}$/D', 'cClassTrib' => '/^\d{6}$/D', 'pDif' => 4],
     ];
 
     /** Percentuais acima de 100 aceitos (MVA). */
@@ -73,15 +75,19 @@ final class Entrada
         if (!in_array($uf, self::UFS, true)) {
             $e->add('emitente.uf', 'Informe a UF do emitente ou configure o emitente');
         }
+        $munEmit = (string) ($em['codigo_municipio'] ?? $cfg['endereco']['codigo_municipio'] ?? '');
+        if (isset($em['codigo_municipio']) && Municipios::get($munEmit) === null) {
+            $e->add('emitente.codigo_municipio', 'Código IBGE do município (7 dígitos)');
+        }
         foreach (array_keys($em) as $k) {
-            if (!in_array($k, ['crt', 'uf'], true)) {
+            if (!in_array($k, ['crt', 'uf', 'codigo_municipio'], true)) {
                 $e->add("emitente.$k", 'Campo não permitido');
             }
         }
 
         $op = self::obj($in, 'operacao', $e);
         $permitidos = ['codigo', 'tipo_pessoa', 'uf_destino', 'consumidor_final', 'contribuinte_icms', 'desconto_iss_condicionado',
-            'excluir_icms_base_piscofins'];
+            'excluir_icms_base_piscofins', 'data', 'aliquotas_ibscbs', 'municipio_destino', 'credito_presumido'];
         foreach (array_keys($op) as $k) {
             if ($k === 'metodo_desoneracao') {
                 $e->add('operacao.metodo_desoneracao', 'Agora fica na regra de ICMS: regra.icms.metodo_desoneracao (CST 30, 40, 41, 50 e 90)');
@@ -110,6 +116,44 @@ final class Entrada
             $e->add('operacao.codigo', 'Código da operação cadastrada na matriz de regras');
             $opCodigo = null;
         }
+        // data da operação (emissão): define as alíquotas do IBS/CBS do ano e se vItem soma IBS/CBS (a partir de 2027)
+        $data = $op['data'] ?? (new \DateTimeImmutable('now', new \DateTimeZone('America/Sao_Paulo')))->format('Y-m-d');
+        if (!is_string($data) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $data, $md) || !checkdate((int) $md[2], (int) $md[3], (int) $md[1])) {
+            $e->add('operacao.data', 'Data AAAA-MM-DD');
+            $md = [1 => date('Y')];
+        }
+        $ano = (int) $md[1];
+        $data = is_string($data) && isset($md[2]) ? substr($data, 0, 10) : null;
+        // município da operação para as alíquotas do IBS/CBS: o do destinatário; sem ele, o do emitente
+        $munDest = $op['municipio_destino'] ?? null;
+        if ($munDest !== null && (!is_string($munDest) || Municipios::get($munDest) === null)) {
+            $e->add('operacao.municipio_destino', 'Código IBGE do município (7 dígitos)');
+            $munDest = null;
+        }
+        $munOp = $munDest ?? ($munEmit !== '' ? $munEmit : null);
+        // alíquotas do IBS/CBS informadas no JSON têm prioridade sobre a tabela da API
+        $aliqIbs = null;
+        if (array_key_exists('aliquotas_ibscbs', $op)) {
+            $a = $op['aliquotas_ibscbs'];
+            if (!is_array($a) || array_is_list($a)) {
+                $e->add('operacao.aliquotas_ibscbs', 'Objeto {pIBSUF, pIBSMun, pCBS} em %');
+            } else {
+                $aliqIbs = [];
+                foreach (array_keys($a) as $k) {
+                    in_array($k, ['pIBSUF', 'pIBSMun', 'pCBS'], true) ?: $e->add("operacao.aliquotas_ibscbs.$k", 'Campo não permitido');
+                }
+                foreach (['pIBSUF', 'pIBSMun', 'pCBS'] as $k) {
+                    $d = self::valor($a[$k] ?? null, 4);
+                    if ($d === null || Dec::cmp($d, '100') > 0) {
+                        $e->add("operacao.aliquotas_ibscbs.$k", 'Percentual de 0 a 100 com até 4 casas (obrigatório)');
+                    } else {
+                        $aliqIbs[$k] = $d;
+                    }
+                }
+            }
+        }
+        // crédito presumido do IBS/CBS (cCredPres): vem da natureza da operação no ERP; o item pode trocar
+        $credPresOp = array_key_exists('credito_presumido', $op) ? self::credPres($op['credito_presumido'], 'operacao.credito_presumido', $e) : null;
         $tipoPessoa = strtoupper((string) ($op['tipo_pessoa'] ?? 'F'));
         if (!in_array($tipoPessoa, Matriz::TIPOS_PESSOA, true)) {
             $e->add('operacao.tipo_pessoa', 'F (física), J (jurídica) ou E (estrangeiro)');
@@ -139,6 +183,12 @@ final class Entrada
         foreach ($itensIn as $i => $it) {
             $item = self::item($it, $i, $e, $ctx);
             if ($item !== null) {
+                if (is_array($it) && array_key_exists('credito_presumido', $it)) {
+                    $cp = self::credPres($it['credito_presumido'], "itens[$i].credito_presumido", $e);
+                    $item->credPres = $cp === null ? null : $cp + ['origem' => 'item'];
+                } elseif ($credPresOp !== null) {
+                    $item->credPres = $credPresOp + ['origem' => 'operacao'];
+                }
                 $itens[] = $item;
             }
         }
@@ -157,8 +207,46 @@ final class Entrada
             'consumidor_final' => $bools['consumidor_final'], 'contribuinte_icms' => $bools['contribuinte_icms'],
             'desconto_iss_condicionado' => $bools['desconto_iss_condicionado'],
             'excluir_icms_base_piscofins' => $bools['excluir_icms_base_piscofins'],
-            'operacao_codigo' => $opCodigo, 'tipo_pessoa' => $tipoPessoa, 'itens' => $itens,
+            'operacao_codigo' => $opCodigo, 'tipo_pessoa' => $tipoPessoa, 'ano' => $ano, 'data' => $data,
+            'aliquotas_ibscbs' => $aliqIbs, 'municipio_operacao' => $munOp, 'itens' => $itens,
         ];
+    }
+
+    /**
+     * Crédito presumido do IBS/CBS: {cCredPres, pCredPresIBS?, pCredPresCBS?}. null no item = sem crédito presumido
+     * (anula o da operação).
+     * @return array{cCredPres:string, pCredPresIBS:?string, pCredPresCBS:?string}|null
+     */
+    private static function credPres(mixed $v, string $f, Errors $e): ?array
+    {
+        if ($v === null) {
+            return null;
+        }
+        if (!is_array($v) || array_is_list($v)) {
+            $e->add($f, 'Objeto {cCredPres, pCredPresIBS, pCredPresCBS} ou null');
+            return null;
+        }
+        foreach (array_keys($v) as $k) {
+            in_array($k, ['cCredPres', 'pCredPresIBS', 'pCredPresCBS'], true) ?: $e->add("$f.$k", 'Campo não permitido');
+        }
+        $c = $v['cCredPres'] ?? null;
+        $c = is_int($c) ? (string) $c : $c;
+        if (!is_string($c) || !preg_match('/^\d{1,2}$/D', $c) || (int) $c === 0) {
+            $e->add("$f.cCredPres", 'Código da tabela cCredPres (1 a 99)');
+            return null;
+        }
+        $out = ['cCredPres' => str_pad($c, 2, '0', STR_PAD_LEFT), 'pCredPresIBS' => null, 'pCredPresCBS' => null];
+        foreach (['pCredPresIBS', 'pCredPresCBS'] as $k) {
+            if (isset($v[$k])) {
+                $d = self::valor($v[$k], 4);
+                $d === null || Dec::cmp($d, '100') > 0 ? $e->add("$f.$k", 'Percentual de 0 a 100 com até 4 casas') : $out[$k] = $d;
+            }
+        }
+        if ($out['pCredPresIBS'] === null && $out['pCredPresCBS'] === null) {
+            $e->add($f, 'Informe pCredPresIBS e/ou pCredPresCBS (percentual do crédito presumido)');
+            return null;
+        }
+        return $out;
     }
 
     /** @param array{operacao: ?string, tipo_pessoa: string, uf: string} $ctx */
@@ -171,7 +259,8 @@ final class Entrada
         }
         $antes = count($e->all());
         $permitidos = ['item', 'codigo', 'ncm', 'cest', 'servico', 'quantidade', 'valor_unitario', 'valor_total', 'desconto', 'frete',
-            'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil_icms', 'perfil_piscofins', 'regra'];
+            'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil_icms', 'perfil_piscofins',
+            'cclasstrib', 'credito_presumido', 'regra'];
         foreach (array_keys($it) as $k) {
             if (!in_array($k, $permitidos, true)) {
                 $e->add("$f.$k", 'Campo não permitido');
@@ -222,6 +311,19 @@ final class Entrada
         [$bruta, $aplicada] = self::resolverRegra($it, $f, $servico, $ctx, $e);
         if (count($e->all()) > $antesRegra) {
             return null; // regra da matriz não encontrada: não repete erros de campos da regra vazia
+        }
+        // IBS/CBS: cClassTrib do produto (o CST e a redução vêm da tabela local de cClassTrib)
+        if (isset($it['cclasstrib']) && !$servico) {
+            $cc = is_int($it['cclasstrib']) ? str_pad((string) $it['cclasstrib'], 6, '0', STR_PAD_LEFT) : $it['cclasstrib'];
+            if (!is_string($cc) || !preg_match('/^\d{6}$/D', $cc)) {
+                $e->add("$f.cclasstrib", 'cClassTrib com 6 dígitos');
+            } elseif (is_array($bruta) && !array_is_list($bruta)) {
+                $g = is_array($bruta['ibscbs'] ?? null) ? $bruta['ibscbs'] : [];
+                if (isset($g['cClassTrib']) && (string) $g['cClassTrib'] !== $cc) {
+                    $e->add("$f.cclasstrib", 'Diferente de regra.ibscbs.cClassTrib');
+                }
+                $bruta['ibscbs'] = ['cClassTrib' => $cc] + $g;
+            }
         }
         $regra = self::regra($bruta, "$f.regra", $servico, $e);
         if (count($e->all()) > $antes || $q === null || $vProd === null) {
@@ -362,6 +464,9 @@ final class Entrada
             }
             if (isset($out['icms']['metodo_desoneracao']) && !in_array($out['icms']['CST'] ?? null, ['30', '40', '41', '50', '90'], true)) {
                 $e->add("$f.icms.metodo_desoneracao", 'Só se aplica aos CST 30, 40, 41, 50 e 90');
+            }
+            if (isset($out['ibscbs'])) {
+                $out['ibscbs'] = IbsCbs::validar($out['ibscbs'], "$f.ibscbs", $e);
             }
         } elseif (!isset($out['iss']['aliquota'])) {
             $e->add("$f.iss.aliquota", 'Alíquota do ISS obrigatória para serviço');

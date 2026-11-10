@@ -80,6 +80,8 @@ final class NfseTest extends TestCase
     private function configNfse(array $over = [], ?callable $req = null): array
     {
         $req ??= fn($m, $u, $b = '') => $this->authed($m, $u, $b);
+        // a opção pelo Simples da NFS-e vem do regime tributário (CRT) da empresa
+        $this->regime($over['opcao_simples_nacional'] ?? 3, $req);
         $r = $req('PUT', '/api/v1/nfse/config', (string) json_encode($over + [
             'inscricao_municipal' => '12345678',
             'opcao_simples_nacional' => 3,
@@ -91,6 +93,20 @@ final class NfseTest extends TestCase
         ]));
         $this->assertSame(200, $r->status, $r->body);
         return $this->json($r);
+    }
+
+    /** Ajusta o CRT da empresa para a opção pelo Simples desejada (1 não optante, 2 MEI, 3 ME/EPP). */
+    private function regime(int $opcao, ?callable $req = null): void
+    {
+        $req ??= fn($m, $u, $b = '') => $this->authed($m, $u, $b);
+        $r = $req('PUT', '/api/v1/config', (string) json_encode([
+            'cnpj' => '11222333000181', 'ie' => '111111111111', 'razao_social' => 'EMPRESA TESTE LTDA', 'uf' => 'SP', 'ambiente' => 2,
+            'crt' => [1 => 3, 2 => 4, 3 => 1][$opcao],
+            'endereco' => ['logradouro' => 'Rua das Flores', 'numero' => '100', 'bairro' => 'Centro', 'codigo_municipio' => '3550308',
+                'municipio' => 'Sao Paulo', 'cep' => '01001000'],
+            'serie' => 1, 'proximo_numero' => 1,
+        ]));
+        $this->assertSame(200, $r->status, $r->body);
     }
 
     private function ligar(): void
@@ -152,13 +168,20 @@ final class NfseTest extends TestCase
         $this->assertSame('3550308', $view['codigo_municipio'], 'sugere o município do emitente');
         $this->assertArrayNotHasKey('transmissao_habilitada', $view);
 
+        // a opção pelo Simples vem do CRT: CRT 1 (Simples) → 3; outra opção no corpo é recusada
+        $this->assertSame(3, $view['opcao_simples_nacional']);
+        $r = $this->authed('PUT', '/api/v1/nfse/config', (string) json_encode(['opcao_simples_nacional' => 1, 'regime_apuracao_sn' => 1]));
+        $this->assertSame(422, $r->status);
+        $this->assertContains('opcao_simples_nacional', array_column($this->json($r)['erro']['detalhes'], 'campo'));
         // MEI com regime de apuração e regime especial: E0162/E0174
+        $this->regime(2);
         $r = $this->authed('PUT', '/api/v1/nfse/config', (string) json_encode(['opcao_simples_nacional' => 2, 'regime_apuracao_sn' => 1, 'regime_especial' => 5]));
         $this->assertSame(422, $r->status);
         $campos = array_column($this->json($r)['erro']['detalhes'], 'campo');
         $this->assertContains('regime_apuracao_sn', $campos);
         $this->assertContains('regime_especial', $campos);
         // ME/EPP sem regime de apuração: E0166
+        $this->regime(3);
         $r = $this->authed('PUT', '/api/v1/nfse/config', (string) json_encode(['opcao_simples_nacional' => 3]));
         $this->assertContains('regime_apuracao_sn', array_column($this->json($r)['erro']['detalhes'], 'campo'));
         $c = $this->configNfse();
@@ -221,10 +244,10 @@ final class NfseTest extends TestCase
     public function testRegraDeIssPreencheServicoEValores(): void
     {
         $this->configure();
-        $this->configNfse();
+        $this->configNfse(['retencao_iss' => 2]); // retenção vem da empresa
         $r = $this->authed('PUT', '/api/v1/tributacao/regras-iss/CURSO', (string) json_encode(['descricao' => 'Curso retido',
             'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
-            'iss' => ['tributacao_iss' => 1, 'retencao_iss' => 2, 'aliquota_iss' => 2.5]]));
+            'iss' => ['aliquota_iss' => 2.5]]));
         $this->assertSame(200, $r->status, $r->body);
 
         $p = ['regra_iss' => 'CURSO', 'servico' => ['descricao' => 'Curso online'],
@@ -249,6 +272,77 @@ final class NfseTest extends TestCase
         $r = $this->dry($p);
         $this->assertSame(422, $r->status);
         $this->assertContains('regra_iss', array_column($this->json($r)['erro']['detalhes'], 'campo'));
+        $this->assertSame(1, $this->json($this->authed('GET', '/api/v1/nfse/config'))['proximo_numero']);
+    }
+
+    public function testTributacaoDeServicosDaEmpresaPreencheIssqn(): void
+    {
+        $this->configure();
+        // não optante: retenção e suspensão vêm do cadastro da empresa
+        $this->configNfse(['opcao_simples_nacional' => 1, 'regime_apuracao_sn' => null, 'retencao_iss' => 2,
+            'suspensao' => ['tipo' => 1, 'numero_processo' => str_repeat('1', 30)]]);
+        $c = $this->json($this->authed('GET', '/api/v1/nfse/config'));
+        $this->assertSame(2, $c['retencao_iss']);
+        $this->assertSame(['tipo' => 1, 'numero_processo' => str_repeat('1', 30)], $c['suspensao']);
+        $this->authed('PUT', '/api/v1/tributacao/regras-iss/CURSO', (string) json_encode(['descricao' => 'Curso',
+            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'], 'iss' => ['aliquota_iss' => 2]]));
+        $p = ['regra_iss' => 'CURSO', 'servico' => ['descricao' => 'Curso'], 'tomador' => ['cpf' => '52998224725', 'nome' => 'Maria'],
+            'valores' => ['servico' => 100]];
+        $d = $this->json($this->dry($p));
+        $this->assertTrue($d['valida'], implode("\n", $d['erros_schema']));
+        $this->assertStringContainsString('<tpRetISSQN>2</tpRetISSQN>', $d['xml']);
+        $this->assertStringContainsString('<tpSusp>1</tpSusp>', $d['xml']);
+        // a nota prevalece sobre a empresa
+        $p['valores']['retencao_iss'] = 1;
+        $this->assertStringContainsString('<tpRetISSQN>1</tpRetISSQN>', $this->json($this->dry($p))['xml']);
+        // empresa imune: tipo de imunidade do cadastro
+        $this->configNfse(['opcao_simples_nacional' => 1, 'regime_apuracao_sn' => null, 'tributacao_iss' => 2, 'tipo_imunidade' => 2]);
+        unset($p['valores']['retencao_iss']);
+        $d = $this->json($this->dry($p));
+        $this->assertStringContainsString('<tribISSQN>2</tribISSQN>', $d['xml']);
+        $this->assertStringContainsString('<tpImunidade>2</tpImunidade>', $d['xml']);
+        // validações do cadastro
+        foreach ([['retencao_iss' => 2, 'tributacao_iss' => 4], ['tipo_imunidade' => 1], ['suspensao' => ['tipo' => 3, 'numero_processo' => '1']]] as $over) {
+            $r = $this->authed('PUT', '/api/v1/nfse/config', (string) json_encode($over + ['inscricao_municipal' => '12345678',
+                'opcao_simples_nacional' => 1, 'regime_especial' => 0, 'serie' => 1, 'proximo_numero' => 1]));
+            $this->assertSame(422, $r->status, $r->body);
+        }
+    }
+
+    public function testRegraDeIssCalculaTributosFederaisComoNoClickPdv(): void
+    {
+        $this->configure();
+        $this->configNfse(['opcao_simples_nacional' => 1, 'regime_apuracao_sn' => null]);
+        $r = $this->authed('PUT', '/api/v1/tributacao/regras-iss/CONSULT', (string) json_encode(['descricao' => 'Consultoria PJ',
+            'tipo_pessoa' => 'J', 'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
+            'iss' => ['aliquota_iss' => 2],
+            'federais' => ['cst_pis_cofins' => '01', 'aliquota_pis' => 0.65, 'aliquota_cofins' => 3, 'aliquota_irrf' => 1.5,
+                'aliquota_csll' => 1, 'tipo_retencao' => 3],
+            'ibs_cbs' => ['indicador_operacao' => '100301', 'classificacao_tributaria' => '000001', 'operacao_onerosa' => true, 'servico_exterior' => false]]));
+        $this->assertSame(200, $r->status, $r->body);
+        $p = ['regra_iss' => 'CONSULT', 'servico' => ['descricao' => 'Consultoria'],
+            'tomador' => ['cnpj' => '11444777000161', 'nome' => 'Cliente PJ'], 'valores' => ['servico' => 1000, 'desconto_incondicionado' => 100]];
+        $r = $this->dry($p);
+        $this->assertSame(200, $r->status, $r->body);
+        $d = $this->json($r);
+        $this->assertTrue($d['valida'], implode("\n", $d['erros_schema']));
+        // base 900: PIS 5,85; COFINS 27,00; IRRF 13,50; CSLL 9,00 → vRetCSLL (tipo 3) = 5,85 + 27,00 + 9,00 = 41,85
+        foreach (['<CST>01</CST>', '<vBCPisCofins>900.00</vBCPisCofins>', '<pAliqPis>0.65</pAliqPis>', '<pAliqCofins>3.00</pAliqCofins>',
+            '<vPis>5.85</vPis>', '<vCofins>27.00</vCofins>', '<tpRetPisCofins>3</tpRetPisCofins>', '<vRetIRRF>13.50</vRetIRRF>',
+            '<vRetCSLL>41.85</vRetCSLL>'] as $tag) {
+            $this->assertStringContainsString($tag, $d['xml']);
+        }
+        // tipo 8 (só CSLL retido) e tributos_federais do JSON prevalecem
+        $this->authed('PUT', '/api/v1/tributacao/regras-iss/CONSULT', (string) json_encode(['descricao' => 'Consultoria PJ',
+            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
+            'federais' => ['cst_pis_cofins' => '01', 'aliquota_pis' => 0.65, 'aliquota_cofins' => 3, 'aliquota_csll' => 1, 'tipo_retencao' => 8]]));
+        $d = $this->json($this->dry($p));
+        $this->assertStringContainsString('<vRetCSLL>9.00</vRetCSLL>', $d['xml']);
+        $this->assertStringNotContainsString('<vRetIRRF>', $d['xml']);
+        $p['tributos_federais'] = ['pis_cofins' => ['cst' => '08', 'tipo_retencao' => 0]];
+        $d = $this->json($this->dry($p));
+        $this->assertStringContainsString('<CST>08</CST>', $d['xml']);
+        $this->assertStringNotContainsString('<vRetCSLL>', $d['xml']);
         $this->assertSame(1, $this->json($this->authed('GET', '/api/v1/nfse/config'))['proximo_numero']);
     }
 

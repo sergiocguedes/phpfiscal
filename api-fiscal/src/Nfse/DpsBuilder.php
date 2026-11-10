@@ -55,6 +55,19 @@ final class DpsBuilder
             $p['regra_iss'] = $in['_regra_iss'];
             unset($in['_regra_iss']);
         }
+        // padrões de ISSQN do cadastro da empresa: só preenchem o que a nota e a regra não informaram
+        if (is_array($in['valores'] ?? null)) {
+            $vv = $in['valores'];
+            $vv['tributacao_iss'] ??= $cfg['tributacao_iss'] ?? 1;
+            $vv['retencao_iss'] ??= $cfg['retencao_iss'] ?? 1;
+            if ($vv['tributacao_iss'] === 2 && !array_key_exists('tipo_imunidade', $vv) && isset($cfg['tipo_imunidade'])) {
+                $vv['tipo_imunidade'] = $cfg['tipo_imunidade'];
+            }
+            if ($vv['tributacao_iss'] === 1 && !array_key_exists('suspensao', $vv) && isset($cfg['suspensao'])) {
+                $vv['suspensao'] = $cfg['suspensao'];
+            }
+            $in['valores'] = $vv;
+        }
         $op = (int) $cfg['opcao_simples_nacional'];
         $regAp = isset($cfg['regime_apuracao_sn']) ? (int) $cfg['regime_apuracao_sn'] : null;
         $regEsp = (int) ($cfg['regime_especial'] ?? 0);

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Request;
 use App\Http\Response;
 use App\Support\Logger;
+use App\Http\ApiException;
 use App\Tributos\Matriz;
 use App\Tributos\RegraDetalhe;
 use App\Tributos\RegrasIss;
@@ -25,6 +26,9 @@ final class TributacaoController
             'obrigatorios_por_cst' => Matriz::OBRIGATORIOS_POR_CST,
             'ufs' => Matriz::UFS,
             'tipos_pessoa' => Matriz::TIPOS_PESSOA,
+            // regime da empresa: o portal mostra CST (CRT 2 e 3) ou CSOSN (CRT 1 Simples e 4 MEI) na regra de ICMS
+            'crt' => isset(($cfg = \App\Nfe\ConfigService::get() ?? [])['crt']) ? (int) $cfg['crt'] : null,
+            'cst_ibscbs_suportados' => array_map(fn($c) => ['cst' => $c, 'descricao' => RegraDetalhe::CST_IBSCBS[$c]], \App\Tributos\IbsCbs::CST_SUPORTADOS),
         ]);
     }
 
@@ -135,6 +139,13 @@ final class TributacaoController
         return Response::json(RegraDetalhe::resumoIss($r));
     }
 
+    public static function copiarIss(Request $req): Response
+    {
+        $r = RegrasIss::copiar($req->json());
+        Logger::audit('tributacao.regra_iss', 'copiada', ['origem' => $req->json()['origem'] ?? null, 'codigo' => $r['codigo']]);
+        return Response::json(RegraDetalhe::resumoIss($r), 201);
+    }
+
     public static function excluirIss(Request $req): Response
     {
         RegrasIss::excluir($req->params['codigo']);
@@ -154,6 +165,71 @@ final class TributacaoController
         Matriz::excluirPisCofins($req->params['perfil'], $req->params['operacao']);
         Logger::audit('tributacao.regra_piscofins', 'excluida', ['chave' => $req->params['perfil'] . '/' . $req->params['operacao']]);
         return Response::noContent();
+    }
+
+    // ------------------------------------------------------------------ tabela cClassTrib (IBS/CBS)
+
+    // administrador da API (tabelas globais da Reforma Tributária)
+
+    public static function aliquotasIbsCbs(Request $req): Response
+    {
+        $d = is_string($req->query['data'] ?? null) ? $req->query['data'] : null;
+        $m = is_string($req->query['municipio'] ?? null) ? $req->query['municipio'] : null;
+        $out = ['linhas' => \App\Tributos\AliquotasIbsCbs::listar()];
+        if ($d !== null) {
+            $out['vigente'] = \App\Tributos\AliquotasIbsCbs::buscar($d, $m); // conferência: o que o cálculo usaria
+        }
+        return Response::json($out);
+    }
+
+    public static function salvarAliquotaIbsCbs(Request $req): Response
+    {
+        $r = \App\Tributos\AliquotasIbsCbs::salvar($req->params['id'] ?? null, $req->json());
+        Logger::audit('rtc.aliquota', isset($req->params['id']) ? 'alterada' : 'incluida', ['id' => $r['id']]);
+        return Response::json($r, isset($req->params['id']) ? 200 : 201);
+    }
+
+    public static function excluirAliquotaIbsCbs(Request $req): Response
+    {
+        \App\Tributos\AliquotasIbsCbs::excluir($req->params['id']);
+        Logger::audit('rtc.aliquota', 'excluida', ['id' => $req->params['id']]);
+        return Response::noContent();
+    }
+
+    public static function municipios(Request $req): Response
+    {
+        $uf = is_string($req->query['uf'] ?? null) && $req->query['uf'] !== '' ? strtoupper($req->query['uf']) : null;
+        $b = is_string($req->query['busca'] ?? null) ? $req->query['busca'] : null;
+        return Response::json(['municipios' => \App\Tributos\Municipios::buscar($uf, $b)]);
+    }
+
+    /** Atualiza a tabela de cClassTrib: {conteudo: texto CSV ou JSON da planilha/SVRS, versao?}. */
+    public static function importarCClassTrib(Request $req): Response
+    {
+        $in = $req->json();
+        if (!is_string($in['conteudo'] ?? null) || $in['conteudo'] === '' || strlen($in['conteudo']) > 10_000_000) {
+            throw ApiException::validation([['campo' => 'conteudo', 'mensagem' => 'Conteúdo do arquivo (CSV da planilha oficial ou JSON), até 10 MB']]);
+        }
+        $versao = is_string($in['versao'] ?? null) && $in['versao'] !== '' ? mb_substr($in['versao'], 0, 40) : null;
+        $tmp = tempnam(sys_get_temp_dir(), 'ccl');
+        try {
+            file_put_contents($tmp, $in['conteudo']);
+            $r = \App\Tributos\TabelaCClassTrib::importarLinhas(\App\Tributos\TabelaCClassTrib::lerArquivo($tmp), 'painel', $versao);
+        } catch (\InvalidArgumentException $x) {
+            throw ApiException::validation([['campo' => 'conteudo', 'mensagem' => mb_substr($x->getMessage(), 0, 2000)]]);
+        } finally {
+            @unlink($tmp);
+        }
+        Logger::audit('rtc.cclasstrib', 'importada', $r + ['versao' => $versao]);
+        return Response::json($r + ['tabela' => \App\Tributos\TabelaCClassTrib::info()]);
+    }
+
+    /** Tabela local de cClassTrib (somente leitura; atualizada pelo administrador com bin/cclasstrib.php). Filtros: cst, busca. */
+    public static function cclasstrib(Request $req): Response
+    {
+        $q = fn(string $k) => is_string($req->query[$k] ?? null) && $req->query[$k] !== '' ? $req->query[$k] : null;
+        $itens = \App\Tributos\TabelaCClassTrib::listar($q('cst'), $q('busca'));
+        return Response::json(['tabela' => \App\Tributos\TabelaCClassTrib::info(), 'total' => count($itens), 'itens' => $itens]);
     }
 
     public static function importar(Request $req): Response

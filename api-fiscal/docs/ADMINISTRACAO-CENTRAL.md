@@ -34,6 +34,8 @@ Cada ambiente tem configuração, CSC, numeração, documentos, operações PDV 
 
 A URL da configuração inclui o identificador da empresa e a aba, permitindo atualizar a página e abrir links diretamente. Os endereços antigos `/certificado`, `/chaves` e `/nfse` abrem a aba correspondente da empresa selecionada. Sem empresa selecionada, a tela pede explicitamente que uma empresa seja escolhida; não exibe silenciosamente outro menu.
 
+**Suporte no Portal Fiscal:** em **Todas as empresas** (ou no topo da tela da empresa), o botão **Abrir Portal Fiscal** abre, em outra aba, o portal daquela empresa com o seu próprio usuário (administrador ou operador), perfil que altera regras e uma faixa indicando o acesso de suporte. O link é de uso único (`POST /api/v1/portal/acessos` com a sessão do painel e `X-Empresa-Id`); o usuário e o tipo `suporte` vêm da sessão, não do corpo, e as alterações ficam na auditoria com o seu usuário. Chaves de API não abrem acesso de suporte.
+
 Em **Usuários permitidos**, o administrador cadastra ou bloqueia acessos. Em **Administração e arquivos**, acompanha o arquivamento e administra as credenciais globais. O painel não possui telas de emissão direta.
 
 ## APIs administrativas

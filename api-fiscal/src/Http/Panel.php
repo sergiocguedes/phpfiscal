@@ -24,7 +24,7 @@ final class Panel
         if (isset($assets[$name])) {
             return new Response(200, file_get_contents(APP_ROOT . '/resources/painel/' . $name), ['Content-Type' => $assets[$name]]);
         }
-        if (!in_array($path, ['/', '/login', '/empresas', '/usuarios', '/administracao', '/empresa', '/certificado', '/chaves', '/nfse', '/perfil', '/mfa', '/esqueci-senha', '/redefinir-senha'], true)) {
+        if (!in_array($path, ['/', '/login', '/empresas', '/usuarios', '/administracao', '/reforma', '/empresa', '/certificado', '/chaves', '/nfse', '/perfil', '/mfa', '/esqueci-senha', '/redefinir-senha'], true)) {
             throw new ApiException(404, 'nao_encontrado', 'Página não encontrada nesta edição da API');
         }
         return new Response(200, file_get_contents(APP_ROOT . '/resources/painel/index.html'), ['Content-Type' => 'text/html; charset=utf-8']);

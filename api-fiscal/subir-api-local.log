@@ -1,0 +1,111 @@
+=== containers antes
+distribuipro-local-app-1 - 127.0.0.1:8090->3000/tcp - C:\Users\sergi\OneDrive\Documentos\GitHub\pequenovarejo
+distribuipro-local-mcp-1 - 127.0.0.1:8091->3100/tcp - C:\Users\sergi\OneDrive\Documentos\GitHub\pequenovarejo
+distribuipro-local-postgres-1 - 127.0.0.1:5434->5432/tcp - C:\Users\sergi\OneDrive\Documentos\GitHub\pequenovarejo
+emissor-nfe-worker-1 -  - D:\fontes\php\www\emissor\api-fiscal\docker
+emissor-nfe-web-1 - 127.0.0.1:8081->8000/tcp - D:\fontes\php\www\emissor\api-fiscal\docker
+emissor-nfe-db-1 - 127.0.0.1:5433->5432/tcp - D:\fontes\php\www\emissor\docker
+madbuilder-local-web-1 - 127.0.0.1:8080->80/tcp - C:\Users\sergi\Documents\Codex\2026-09-08\tenh\outputs\docker-php
+madbuilder-local-db-1 - 127.0.0.1:3307->3306/tcp - C:\Users\sergi\Documents\Codex\2026-09-08\tenh\outputs\docker-php
+=== parando emissor-nfe-web-1
+emissor-nfe-web-1
+=== subindo
+ Image emissor-nfe-php:8.3.36 Building 
+ Image emissor-nfe-php:8.3.36 Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.20kB 0.0s done
+#1 DONE 0.0s
+
+#2 [web internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.16kB 0.0s done
+#2 DONE 0.1s
+
+#2 [worker internal] load build definition from Dockerfile
+#2 DONE 0.1s
+
+#3 [web internal] load metadata for docker.io/library/php:8.3.36-cli-bookworm@sha256:ea81db1403c3df3c3d01cc6c0aeb5f7bd5a0fe6e16665fe3e3236c6113e2117f
+#3 DONE 1.9s
+
+#4 [web internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.1s
+
+#5 [web internal] load build context
+#5 DONE 0.0s
+
+#6 [web fiscal-cli 1/6] FROM docker.io/library/php:8.3.36-cli-bookworm@sha256:ea81db1403c3df3c3d01cc6c0aeb5f7bd5a0fe6e16665fe3e3236c6113e2117f
+#6 resolve docker.io/library/php:8.3.36-cli-bookworm@sha256:ea81db1403c3df3c3d01cc6c0aeb5f7bd5a0fe6e16665fe3e3236c6113e2117f 0.0s done
+#6 DONE 0.0s
+
+#6 [worker fiscal-cli 1/6] FROM docker.io/library/php:8.3.36-cli-bookworm@sha256:ea81db1403c3df3c3d01cc6c0aeb5f7bd5a0fe6e16665fe3e3236c6113e2117f
+#6 resolve docker.io/library/php:8.3.36-cli-bookworm@sha256:ea81db1403c3df3c3d01cc6c0aeb5f7bd5a0fe6e16665fe3e3236c6113e2117f 0.0s done
+#6 DONE 0.0s
+
+#5 [web internal] load build context
+#5 transferring context: 507B 0.0s done
+#5 DONE 0.1s
+
+#7 [worker fiscal-cli 5/6] RUN groupadd -g 10096 emissor && useradd -u 10096 -g 10096 -M -d /app -s /usr/sbin/nologin emissor
+#7 CACHED
+
+#8 [worker fiscal-cli 2/6] RUN php -r 'exit(version_compare(PHP_VERSION, "8.3.36", ">=") ? 0 : 1);'  || (echo "PHP da imagem base sem a correção de 21/10/2026" >&2; exit 1)
+#8 CACHED
+
+#9 [worker fiscal-cli 3/6] RUN apt-get update  && apt-get install -y --no-install-recommends libpng-dev libjpeg62-turbo-dev libfreetype6-dev libzip-dev libonig-dev libxml2-dev libcurl4-openssl-dev libpq-dev curl  && docker-php-ext-configure gd --with-freetype --with-jpeg  && docker-php-ext-install -j"$(nproc)" gd zip bcmath mbstring soap curl pdo_pgsql  && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [worker fiscal-cli 4/6] COPY php-seguranca.ini /usr/local/etc/php/conf.d/zz-emissor-seguranca.ini
+#10 CACHED
+
+#11 [worker fiscal-cli 6/6] WORKDIR /app
+#11 CACHED
+
+#12 [web] exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:c9595768bd2b48cd2cb213737f352ef076fcf606ae323b7a7bce370f5559e2db done
+#12 exporting config sha256:455582f1d963885e589aa059769c3a022d76e5fa2ef4f62165373f17c47fed1a 0.0s done
+#12 exporting attestation manifest sha256:9dae669e31ace969d641ac3f6ee0261d0e42e0aa32a6eca75c6cecbdcb5b1e7b
+#12 exporting attestation manifest sha256:9dae669e31ace969d641ac3f6ee0261d0e42e0aa32a6eca75c6cecbdcb5b1e7b 0.2s done
+#12 exporting manifest list sha256:de85d276ada7b704329ea645d1c8587cf542424a85dd1c0b47cc74b056928c79
+#12 exporting manifest list sha256:de85d276ada7b704329ea645d1c8587cf542424a85dd1c0b47cc74b056928c79 0.1s done
+#12 naming to docker.io/library/emissor-nfe-php:8.3.36 0.0s done
+#12 unpacking to docker.io/library/emissor-nfe-php:8.3.36
+#12 unpacking to docker.io/library/emissor-nfe-php:8.3.36 0.1s done
+#12 DONE 0.5s
+
+#13 [worker] exporting to image
+#13 exporting layers done
+#13 exporting manifest sha256:52a9418e3a816f62ae127765ba15918fc5392755b0ae0a7e1417c85a98af4c39 0.1s done
+#13 exporting config sha256:c1d6bbc3ac2a69404cd98dad0503b5abeca7371304458a61884b148210c02931 0.1s done
+#13 exporting attestation manifest sha256:5b2074f4531964d0711846868f18d07c98092a56090e6640a9c0a47ae1a5e245 0.1s done
+#13 exporting manifest list sha256:456374d5c7eb296d35fd75ee2c659ee8fee0eed26fdf11d25237156b4473b606 0.1s done
+#13 naming to docker.io/library/emissor-nfe-php:8.3.36 done
+#13 unpacking to docker.io/library/emissor-nfe-php:8.3.36 0.0s done
+#13 DONE 0.6s
+
+#14 [web] resolving provenance for metadata file
+#14 DONE 0.1s
+
+#15 [worker] resolving provenance for metadata file
+#15 DONE 0.0s
+ Image emissor-nfe-php:8.3.36 Built 
+ Image emissor-nfe-php:8.3.36 Built 
+ Container emissor-nfe-db-1 Running 
+ Container emissor-nfe-web-1 Recreate 
+ Container emissor-nfe-web-1 Recreated 
+ Container emissor-nfe-worker-1 Recreate 
+ Container emissor-nfe-worker-1 Recreated 
+ Container emissor-nfe-db-1 Waiting 
+ Container emissor-nfe-db-1 Healthy 
+ Container emissor-nfe-web-1 Starting 
+ Container emissor-nfe-web-1 Started 
+ Container emissor-nfe-web-1 Waiting 
+ Container emissor-nfe-web-1 Healthy 
+ Container emissor-nfe-worker-1 Starting 
+ Container emissor-nfe-worker-1 Started 
+=== containers depois
+NAME                   IMAGE                    COMMAND                  SERVICE   CREATED          STATUS                   PORTS
+emissor-nfe-db-1       postgres:17-bookworm     "docker-entrypoint.s…"   db        7 days ago       Up 2 hours (healthy)     127.0.0.1:5433->5432/tcp
+emissor-nfe-web-1      emissor-nfe-php:8.3.36   "docker-php-entrypoi…"   web       18 seconds ago   Up 6 seconds (healthy)   127.0.0.1:8081->8000/tcp
+emissor-nfe-worker-1   emissor-nfe-php:8.3.36   "docker-php-entrypoi…"   worker    17 seconds ago   Up Less than a second    
+=== FIM

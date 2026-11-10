@@ -79,6 +79,7 @@ function bindForm(form, fn) {
 }
 let cadCache = null;
 async function cad(force = false) { if (!cadCache || force) cadCache = await api('/tributacao'); return cadCache; }
+const TIPOS_PERFIL = {icms: ['ICMS', 'brand'], piscofins: ['PIS/COFINS', 'ok']};
 const optsPerfis = (c, tipo, todos) => [...(todos ? [['', todos]] : []), ...c.perfis.filter(p => p.tipo === tipo).map(p => [p.codigo, `${p.codigo} · ${p.nome}`])];
 const optsOps = (c, todos) => [...(todos ? [['', todos]] : []), ...c.operacoes.map(o => [o.codigo, `${o.codigo} · ${o.nome}`])];
 
@@ -119,7 +120,8 @@ function layout(atual) {
   ${NAV.map(([t, itens]) => `<nav class="nav nav-group" aria-label="${esc(t)}"><div class="nav-title">${esc(t)}</div>${itens.map(([k, l]) => k ? `<a href="#/${k}" class="${atual === k ? 'active' : ''}"><i class="dot"></i>${esc(l)}</a>` : `<span><i class="dot"></i>${esc(l)}<em class="soon">em breve</em></span>`).join('')}</nav>`).join('')}
   <div class="side-foot">Emissão e cancelamento de notas são feitos no sistema da empresa.</div></aside>
   <div class="main"><header class="top"><div class="company"><strong>${esc(ctx.empresa.nome)}</strong><small>${ctx.empresa.cnpj ? 'CNPJ ' + esc(fmtCnpj(ctx.empresa.cnpj)) : ''}</small></div>
-  <div class="user"><div class="user-info"><div>${esc(u.nome)}</div><small>${ctx.tipo_usuario === 'contador' ? 'Contador' : 'Cliente'} · ${ctx.perfil === 'fiscal' ? 'pode alterar regras' : 'somente consulta'}</small></div><div class="avatar" aria-hidden="true">${esc(ini)}</div><button type="button" class="ghost sm" id="sair">Sair</button></div></header>
+  <div class="user"><div class="user-info"><div>${esc(u.nome)}</div><small>${({contador: 'Contador', suporte: 'Suporte', cliente: 'Cliente'})[ctx.tipo_usuario] || 'Cliente'} · ${ctx.perfil === 'fiscal' ? 'pode alterar regras' : 'somente consulta'}</small></div><div class="avatar" aria-hidden="true">${esc(ini)}</div><button type="button" class="ghost sm" id="sair">Sair</button></div></header>
+  ${ctx.tipo_usuario === 'suporte' ? '<div class="support-bar" role="status">Acesso de suporte pelo painel administrativo. As alterações ficam registradas com o seu usuário.</div>' : ''}
   <section class="content" id="view"></section></div></div>`;
   $('#sair').onclick = async () => { try { await api('/portal/sair', 'POST'); } catch (e) { /* sessão já encerrada */ } ctx = null; gate('Sessão encerrada', 'Para voltar, use o atalho "Painel fiscal" do seu sistema.'); };
   return $('#view');
@@ -160,14 +162,14 @@ async function perfis(v, [acao, codigo]) {
   if (acao === 'novo' || acao === 'editar') {
     const p = acao === 'editar' ? c.perfis.find(x => x.codigo === codigo) : {codigo: '', nome: '', tipo: 'icms'};
     if (!p) return go('#/perfis');
-    v.innerHTML = head(acao === 'novo' ? 'Novo perfil tributário' : 'Alterar perfil tributário', 'O perfil é a "tributação" do produto (ex.: 1 · Produto tributado, 2 · Produto substituição). O produto no sistema informa o código do perfil de ICMS e o de PIS/COFINS.', '', '<a href="#/perfis">Perfis tributários</a> / ' + (acao === 'novo' ? 'Novo' : esc(p.codigo))) +
-    `<form class="card" id="f"><div class="form-grid three">${inp('codigo', req('Código'), p.codigo, `required maxlength="30" pattern="[A-Za-z0-9_\\-]+" ${acao === 'editar' ? 'disabled' : ''}`)}${inp('nome', req('Nome'), p.nome, `required maxlength="60" ${ro()}`)}${sel('tipo', req('Tipo'), p.tipo, [['icms', 'ICMS'], ['piscofins', 'PIS/COFINS']], ro())}</div>
+    v.innerHTML = head(acao === 'novo' ? 'Novo perfil tributário' : 'Alterar perfil tributário', 'O perfil é a "tributação" do produto (ex.: 1 · Produto tributado, 2 · Produto substituição). O produto no sistema informa o código do perfil de ICMS e o de PIS/COFINS (e o cClassTrib, para o IBS/CBS).', '', '<a href="#/perfis">Perfis tributários</a> / ' + (acao === 'novo' ? 'Novo' : esc(p.codigo))) +
+    `<form class="card" id="f"><div class="form-grid three">${inp('codigo', req('Código'), p.codigo, `required maxlength="30" pattern="[A-Za-z0-9_\\-]+" ${acao === 'editar' ? 'disabled' : ''}`)}${inp('nome', req('Nome'), p.nome, `required maxlength="60" ${ro()}`)}${sel('tipo', req('Tipo'), p.tipo, Object.entries(TIPOS_PERFIL).map(([k, [l]]) => [k, l]), ro())}</div>
     <div class="form-actions"><a class="btn ghost" href="#/perfis">Voltar</a>${pode() ? '<button type="submit">Salvar perfil</button>' : ''}</div></form>`;
     bindForm($('#f', v), async d => { await api('/tributacao/perfis/' + enc(p.codigo || d.codigo), 'PUT', {nome: d.nome, tipo: d.tipo}); toast('Perfil salvo.'); go('#/perfis'); });
     return;
   }
   v.innerHTML = head('Perfis tributários', 'Tributação de ICMS e de PIS/COFINS atribuída aos produtos.', pode() ? '<a class="btn" href="#/perfis/novo">Novo perfil</a>' : '') +
-  `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th></th></tr></thead><tbody>${c.perfis.map(p => `<tr><td><b>${esc(p.codigo)}</b></td><td>${esc(p.nome)}</td><td><span class="badge ${p.tipo === 'icms' ? 'brand' : 'ok'}">${p.tipo === 'icms' ? 'ICMS' : 'PIS/COFINS'}</span></td><td class="actions"><a class="btn ghost sm" href="#/perfis/editar/${enc(p.codigo)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <button type="button" class="danger sm" data-del="${esc(p.codigo)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhum perfil cadastrado.</td></tr>'}</tbody></table></div></div>`;
+  `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th></th></tr></thead><tbody>${c.perfis.map(p => `<tr><td><b>${esc(p.codigo)}</b></td><td>${esc(p.nome)}</td><td><span class="badge ${(TIPOS_PERFIL[p.tipo] || [])[1] || ''}">${esc((TIPOS_PERFIL[p.tipo] || [p.tipo])[0])}</span></td><td class="actions"><a class="btn ghost sm" href="#/perfis/editar/${enc(p.codigo)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <button type="button" class="danger sm" data-del="${esc(p.codigo)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhum perfil cadastrado.</td></tr>'}</tbody></table></div></div>`;
   $$('[data-del]', v).forEach(b => b.onclick = async () => { if (!await confirmar('Excluir perfil', `Excluir o perfil ${b.dataset.del}? Perfis com regras não podem ser excluídos.`)) return; try { await api('/tributacao/perfis/' + enc(b.dataset.del), 'DELETE'); toast('Perfil excluído.'); route(); } catch (e) { fail(e); } });
 }
 async function operacoes(v, [acao, codigo]) {
@@ -219,7 +221,13 @@ async function formIcms(v, c, chave) {
   } else {
     r = {perfil: filtroIcms.perfil || '', operacao: filtroIcms.operacao || '', uf: filtroIcms.uf || '', tipo_pessoa: filtroIcms.pessoa || 'F', descricao: '', cfop: '5102', icms: {CST: '00', modBC: 3}};
   }
-  const cst = r.icms.CST || r.icms.CSOSN;
+  // regime da empresa: CRT 1 (Simples) e 4 (MEI) usam CSOSN de 3 dígitos; CRT 2 e 3 (regime normal) usam CST de 2 dígitos
+  const csosn = c.crt == null ? null : [1, 4].includes(Number(c.crt));
+  let cst = r.icms.CST || r.icms.CSOSN;
+  let listaCst = csosn === null ? CST_ICMS : CST_ICMS.filter(([x]) => (x.length === 3) === csosn);
+  const fora = !!chave && !listaCst.some(([x]) => x === cst);
+  if (fora) listaCst = [...CST_ICMS.filter(([x]) => x === cst), ...listaCst];
+  if (!chave && !listaCst.some(([x]) => x === cst)) { cst = listaCst[0][0]; r.icms = csosn ? {CSOSN: cst} : {CST: cst, modBC: 3}; }
   v.innerHTML = head(chave ? 'Alterar regra de ICMS' : 'Nova regra de ICMS', 'Somente os campos do CST escolhido são exibidos. Campos com * são obrigatórios.', '', '<a href="#/regras-icms">Regras de ICMS</a> / ' + (chave ? esc(`${r.perfil} · ${r.operacao} · ${r.uf} · ${PESSOA[r.tipo_pessoa]}`) : 'Nova')) +
   `<form class="card" id="f"><div class="form-grid">
   <div class="section-title">Aplicação da regra</div>
@@ -227,7 +235,8 @@ async function formIcms(v, c, chave) {
   ${sel('uf', req('UF de destino'), r.uf, UFS.map(u => [u, u]), chave ? 'disabled' : 'required')}${sel('tipo_pessoa', req('Tipo de pessoa'), r.tipo_pessoa, Object.entries(PESSOA), chave ? 'disabled' : '')}
   ${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" placeholder="Identificação da regra" ${ro()}`)}${inp('cfop', req('CFOP'), r.cfop, `required pattern="[1-35-7][0-9]{3}" inputmode="numeric" ${ro()}`)}
   <div class="section-title">ICMS</div>
-  <label class="full">${req('CST / CSOSN')}<select name="cst" ${ro()}>${CST_ICMS.map(([x, t]) => `<option value="${x}" ${x === cst ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+  <label class="full">${req(csosn === null ? 'CST / CSOSN' : csosn ? 'CSOSN (Simples Nacional / MEI)' : 'CST (regime normal)')}<select name="cst" ${ro()}>${listaCst.map(([x, t]) => `<option value="${x}" ${x === cst ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+  ${fora ? `<p class="hint full">O código ${esc(cst)} desta regra não corresponde ao regime da empresa (${csosn ? 'Simples Nacional/MEI usa CSOSN de 3 dígitos' : 'regime normal usa CST de 2 dígitos'}). Escolha um código da lista para corrigir.</p>` : ''}
   </div><div class="form-grid" id="campos"></div>
   <div class="form-grid"><div class="section-title">IPI (somente NF-e)</div>${inp('ipi_cst', 'CST do IPI', r.ipi?.CST, `pattern="[0-9]{2}" placeholder="Ex.: 52" ${ro()}`)}${inp('ipi_cenq', 'Enquadramento legal', r.ipi?.cEnq || '999', `pattern="[0-9]{3}" ${ro()}`)}${inp('ipi_p', 'Alíquota do IPI (%)', br(r.ipi?.pIPI), `inputmode="decimal" ${ro()}`)}</div>
   <div class="form-actions"><a class="btn ghost" href="#/regras-icms">Voltar</a>${pode() ? '<button type="submit">Salvar regra</button>' : ''}</div></form>`;
@@ -303,14 +312,27 @@ async function regrasPc(v, [acao, p, o]) {
 }
 
 // ---------------------------------------------------------------- regras de ISS (NFS-e)
-const TRIB_ISS = [[1, '1 · Operação tributável'], [2, '2 · Imunidade'], [4, '4 · Não incidência']];
-const RET_ISS = [[1, '1 · Não retido'], [2, '2 · Retido pelo tomador']];
-const IMUN = [[0, '0 · Imunidade (tipo não informado)'], [1, '1 · Patrimônio, renda ou serviços entre entes públicos'], [2, '2 · Templos de qualquer culto'], [3, '3 · Partidos, sindicatos, educação e assistência social'], [4, '4 · Livros, jornais, periódicos e papel'], [5, '5 · Fonogramas e videofonogramas musicais']];
+const TIPO_RET_PC = [[0, '0 · PIS/COFINS/CSLL não retidos'], [1, '1 · PIS/COFINS retidos'], [2, '2 · PIS/COFINS não retidos'], [3, '3 · PIS/COFINS/CSLL retidos'], [4, '4 · PIS/COFINS retidos, CSLL não retido'], [5, '5 · PIS retido, COFINS/CSLL não retidos'], [6, '6 · COFINS retido, PIS/CSLL não retidos'], [7, '7 · PIS não retido, COFINS/CSLL retidos'], [8, '8 · PIS/COFINS não retidos, CSLL retido'], [9, '9 · COFINS não retido, PIS/CSLL retidos']];
+// descrições oficiais da NFS-e (no ClickPDV, CST_ISS 00/07/09 têm descrições diferentes destas)
+const CST_PC_NFSE = [['00', '00 · Nenhum'], ['01', '01 · Tributável com alíquota básica'], ['02', '02 · Tributável com alíquota diferenciada'], ['03', '03 · Tributável por unidade de medida'], ['04', '04 · Monofásica, revenda a alíquota zero'], ['05', '05 · Substituição tributária'], ['06', '06 · Alíquota zero'], ['07', '07 · Isenta'], ['08', '08 · Sem incidência'], ['09', '09 · Suspensão'], ['49', '49 · Outras operações de saída'], ['99', '99 · Outras operações']];
 async function regrasIss(v, [acao, codigo]) {
+  if (acao === 'copiar') {
+    let r; try { r = await api('/tributacao/regras-iss/' + enc(codigo)); } catch (e) { fail(e); return go('#/regras-iss'); }
+    v.innerHTML = head('Copiar regra de ISS', `Cria uma regra nova com os mesmos dados de <strong>${esc(r.codigo)}</strong> · ${esc(r.descricao)}. Depois de copiar, a regra nova abre para ajustes.`, '', '<a href="#/regras-iss">Regras de ISS</a> / Copiar ' + esc(r.codigo)) +
+    `<form class="card" id="f"><div class="form-grid three">${inp('destino', req('Código da nova regra'), '', 'required maxlength="30" pattern="[A-Za-z0-9_\\-]+"')}<div class="span2">${inp('descricao', req('Descrição da nova regra'), ('Cópia de ' + r.descricao).slice(0, 120), 'required maxlength="120"')}</div>
+    <label class="check"><input type="checkbox" name="sobrescrever"> Substituir se o código já existir</label></div>
+    <div class="form-actions"><a class="btn ghost" href="#/regras-iss">Voltar</a><button type="submit">Copiar regra</button></div></form>`;
+    bindForm($('#f', v), async d => {
+      const n = await api('/tributacao/regras-iss/copiar', 'POST', {origem: r.codigo, destino: d.destino, descricao: d.descricao, sobrescrever: !!d.sobrescrever});
+      toast('Regra copiada.'); go('#/regras-iss/editar/' + enc(n.codigo));
+    });
+    return;
+  }
   if (acao === 'novo' || acao === 'editar') {
-    let r = {codigo: '', descricao: '', servico: {}, iss: {tributacao_iss: 1, retencao_iss: 1}};
+    let r = {codigo: '', descricao: '', servico: {}, iss: {}};
     if (acao === 'editar') { try { r = await api('/tributacao/regras-iss/' + enc(codigo)); } catch (e) { fail(e); return go('#/regras-iss'); } }
     const cod = r.servico.codigo_tributacao_nacional || '';
+    const fe = r.federais || {}, ib = r.ibs_cbs || {};
     v.innerHTML = head(acao === 'novo' ? 'Nova regra de ISS' : 'Alterar regra de ISS', 'Usada na emissão da NFS-e: o sistema informa <code>regra_iss</code> e a API preenche o serviço e o ISS. O que o sistema enviar na nota prevalece.', '', '<a href="#/regras-iss">Regras de ISS</a> / ' + (acao === 'novo' ? 'Nova' : esc(r.codigo))) +
     `<form class="card" id="f"><div class="form-grid three">${inp('codigo', req('Código da regra'), r.codigo, `required maxlength="30" pattern="[A-Za-z0-9_\\-]+" ${acao === 'editar' ? 'disabled' : ''}`)}<div class="span2">${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" ${ro()}`)}</div>
     <div class="section-title">SERVIÇO</div>
@@ -318,13 +340,18 @@ async function regrasIss(v, [acao, codigo]) {
     <div class="span2"><label>${req('Código de tributação nacional')}<select name="ctn" id="ctn" required ${ro()}>${cod ? `<option value="${esc(cod)}">${esc(cod)}${r.servico_descricao ? ' · ' + esc(r.servico_descricao) : ''}</option>` : '<option value="">Busque o serviço ao lado</option>'}</select></label></div>
     ${inp('nbs', 'NBS (9 dígitos)', r.servico.nbs, `inputmode="numeric" maxlength="12" ${ro()}`)}${inp('ctm', 'Código de tributação municipal', r.servico.codigo_tributacao_municipal, `inputmode="numeric" maxlength="3" ${ro()}`)}${inp('ci', 'Código interno', r.servico.codigo_interno, `maxlength="20" ${ro()}`)}
     <div class="section-title">ISS</div>
-    ${sel('trib', req('Tributação do ISS'), r.iss.tributacao_iss, TRIB_ISS, ro())}${sel('ret', req('Retenção'), r.iss.retencao_iss, RET_ISS, ro())}${inp('aliq', 'Alíquota do ISS (%)', br(r.iss.aliquota_iss), `inputmode="decimal" ${ro()}`)}
-    <div class="span2" id="imunbox">${sel('imun', 'Tipo de imunidade', r.iss.tipo_imunidade ?? 0, IMUN, ro())}</div></div>
-    <p class="hint">Alíquota até 5%. Se o regime do prestador ou o convênio do município não permitir informar a alíquota, a API a omite na DPS e a Sefin aplica a do município.</p>
+    ${inp('aliq', 'Alíquota do ISS (%)', br(r.iss.aliquota_iss), `inputmode="decimal" ${ro()}`)}
+    ${sel('tp', 'Tipo de pessoa do tomador', r.tipo_pessoa || '', [['', 'Qualquer'], ['F', 'Pessoa física'], ['J', 'Pessoa jurídica']], ro())}
+    <div class="section-title">PIS/COFINS, IRRF E CSLL DO SERVIÇO</div>
+    ${sel('cstpc', 'CST PIS/COFINS', fe.cst_pis_cofins || '', [['', 'Sem tributos federais na regra'], ...CST_PC_NFSE, ...(fe.cst_pis_cofins && !CST_PC_NFSE.some(([c]) => c === fe.cst_pis_cofins) ? [[fe.cst_pis_cofins, fe.cst_pis_cofins]] : [])], ro())}${inp('ppis', 'Alíquota PIS (%)', br(fe.aliquota_pis), `inputmode="decimal" ${ro()}`)}${inp('pcof', 'Alíquota COFINS (%)', br(fe.aliquota_cofins), `inputmode="decimal" ${ro()}`)}
+    ${inp('pirrf', 'Alíquota IRRF (%)', br(fe.aliquota_irrf), `inputmode="decimal" ${ro()}`)}${inp('pcsll', 'Alíquota CSLL (%)', br(fe.aliquota_csll), `inputmode="decimal" ${ro()}`)}${sel('tret', 'Retenção PIS/COFINS/CSLL', fe.tipo_retencao ?? 0, TIPO_RET_PC, ro())}
+    <div class="section-title">IBS/CBS DO SERVIÇO (INFORMADO NA NFS-E)</div>
+    ${inp('indop', 'Indicador da operação', ib.indicador_operacao, `inputmode="numeric" maxlength="6" ${ro()}`)}${inp('cct', 'cClassTrib', ib.classificacao_tributaria, `inputmode="numeric" maxlength="6" ${ro()}`)}${inp('pdif', 'Diferimento (%)', br(ib.percentual_diferimento), `inputmode="decimal" ${ro()}`)}
+    <label class="check"><input type="checkbox" name="oner" ${ib.operacao_onerosa !== false ? 'checked' : ''} ${ro()}> Operação onerosa</label><label class="check"><input type="checkbox" name="ext" ${ib.servico_exterior ? 'checked' : ''} ${ro()}> Serviço para o exterior</label></div>
+    <p class="hint">Com CST PIS/COFINS preenchido, a API calcula na NFS-e PIS, COFINS, IRRF e as retenções sobre o valor do serviço menos o desconto incondicionado (vRetCSLL soma PIS, COFINS e CSLL retidos conforme o tipo de retenção). Se o sistema enviar <code>tributos_federais</code>, vale o enviado. Os dados de IBS/CBS completam o grupo <code>ibs_cbs</code> quando o sistema o envia; a API não calcula IBS/CBS na NFS-e.</p>
+    <p class="hint">Tributação, retenção, imunidade e suspensão do ISSQN vêm do cadastro da empresa. Alíquota até 5%. Se o regime do prestador ou o convênio do município não permitir informar a alíquota, a API a omite na DPS e a Sefin aplica a do município.</p>
     <div class="form-actions"><a class="btn ghost" href="#/regras-iss">Voltar</a>${pode() ? '<button type="submit">Salvar regra</button>' : ''}</div></form>`;
     const f = $('#f', v);
-    const imun = () => { $('#imunbox', f).hidden = f.trib.value !== '2'; };
-    f.trib.onchange = imun; imun();
     const busca = $('#busca', f); let t;
     if (busca) busca.oninput = () => { clearTimeout(t); t = setTimeout(async () => {
       const q = busca.value.trim(); if (q.length < 2) return;
@@ -333,15 +360,17 @@ async function regrasIss(v, [acao, codigo]) {
     bindForm(f, async d => {
       const k = acao === 'editar' ? r.codigo : d.codigo;
       const servico = {codigo_tributacao_nacional: d.ctn, ...(d.nbs ? {nbs: d.nbs.replace(/\D/g, '')} : {}), ...(d.ctm ? {codigo_tributacao_municipal: d.ctm} : {}), ...(d.ci ? {codigo_interno: d.ci} : {})};
-      const iss = {tributacao_iss: Number(d.trib), retencao_iss: Number(d.ret), ...(d.trib === '2' ? {tipo_imunidade: Number(d.imun)} : {}), ...(d.aliq ? {aliquota_iss: num(d.aliq)} : {})};
-      await api('/tributacao/regras-iss/' + enc(k), 'PUT', {descricao: d.descricao, servico, iss}); toast('Regra salva.'); go('#/regras-iss');
+      const iss = d.aliq ? {aliquota_iss: num(d.aliq)} : {};
+      const federais = d.cstpc ? {cst_pis_cofins: d.cstpc, tipo_retencao: Number(d.tret), ...Object.fromEntries([['aliquota_pis', d.ppis], ['aliquota_cofins', d.pcof], ['aliquota_irrf', d.pirrf], ['aliquota_csll', d.pcsll]].filter(([, x]) => x).map(([key, x]) => [key, num(x)]))} : null;
+      const ibs_cbs = {operacao_onerosa: !!f.oner.checked, servico_exterior: !!f.ext.checked, ...(d.indop ? {indicador_operacao: d.indop} : {}), ...(d.cct ? {classificacao_tributaria: d.cct} : {}), ...(d.pdif ? {percentual_diferimento: num(d.pdif)} : {})};
+      await api('/tributacao/regras-iss/' + enc(k), 'PUT', {descricao: d.descricao, ...(d.tp ? {tipo_pessoa: d.tp} : {}), servico, iss, federais, ibs_cbs}); toast('Regra salva.'); go('#/regras-iss');
     });
     return;
   }
   const {regras} = await api('/tributacao/regras-iss');
   v.innerHTML = head('Regras de ISS (NFS-e)', 'Serviço e tratamento do ISS usados na emissão da NFS-e. O sistema informa o código da regra na nota.', pode() ? '<a class="btn" href="#/regras-iss/novo">Nova regra</a>' : '') +
-  `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Serviço nacional</th><th>Tributação</th><th>Retenção</th><th class="num">Alíquota</th><th></th></tr></thead><tbody>
-  ${regras.map(r => `<tr><td><strong>${esc(r.codigo)}</strong></td><td>${esc(r.descricao)}</td><td><span class="badge">${esc(r.servico.codigo_tributacao_nacional)}</span> <small class="muted">${esc((r.servico_descricao || '').slice(0, 60))}</small></td><td>${esc(r.tributacao_iss_descricao)}</td><td>${esc(r.retencao_iss_descricao)}</td><td class="num">${r.iss.aliquota_iss != null ? br(r.iss.aliquota_iss) + '%' : '—'}</td><td class="actions"><a class="btn ghost sm" href="#/regras-iss/editar/${enc(r.codigo)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <button type="button" class="danger sm" data-del="${enc(r.codigo)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhuma regra de ISS cadastrada.</td></tr>'}
+  `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Serviço nacional</th><th>Tipo de pessoa</th><th>PIS/COFINS</th><th class="num">Alíquota</th><th></th></tr></thead><tbody>
+  ${regras.map(r => `<tr><td><strong>${esc(r.codigo)}</strong></td><td>${esc(r.descricao)}</td><td><span class="badge">${esc(r.servico.codigo_tributacao_nacional)}</span> <small class="muted">${esc((r.servico_descricao || '').slice(0, 60))}</small></td><td>${esc(r.tipo_pessoa_descricao || 'Qualquer')}</td><td>${r.federais ? `<span class="badge ok">${esc(r.federais.cst_pis_cofins)}</span>` : '—'}</td><td class="num">${r.iss.aliquota_iss != null ? br(r.iss.aliquota_iss) + '%' : '—'}</td><td class="actions"><a class="btn ghost sm" href="#/regras-iss/editar/${enc(r.codigo)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <a class="btn ghost sm" href="#/regras-iss/copiar/${enc(r.codigo)}">Copiar</a> <button type="button" class="danger sm" data-del="${enc(r.codigo)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhuma regra de ISS cadastrada.</td></tr>'}
   </tbody></table></div><div class="count">${regras.length} regra(s)</div></div>`;
   $$('[data-del]', v).forEach(b => b.onclick = async () => { if (!await confirmar('Excluir regra de ISS', `Excluir a regra ${decodeURIComponent(b.dataset.del)}?`)) return; try { await api('/tributacao/regras-iss/' + b.dataset.del, 'DELETE'); toast('Regra excluída.'); route(); } catch (e) { fail(e); } });
 }
@@ -349,29 +378,30 @@ async function regrasIss(v, [acao, codigo]) {
 // ---------------------------------------------------------------- simulador
 async function simulador(v) {
   const c = await cad(true);
-  const linha = i => `<tr data-i="${i}"><td>${sel('perfil_icms', '', '', optsPerfis(c, 'icms'), 'aria-label="Perfil de ICMS"')}</td><td>${sel('perfil_piscofins', '', '', [['', '—'], ...optsPerfis(c, 'piscofins')], 'aria-label="Perfil de PIS/COFINS"')}</td><td>${sel('origem', '', 0, ORIGENS, 'aria-label="Origem"')}</td><td><input name="quantidade" value="1" inputmode="decimal" aria-label="Quantidade"></td><td><input name="valor_unitario" value="100,00" inputmode="decimal" aria-label="Valor unitário"></td><td><input name="desconto" value="" inputmode="decimal" aria-label="Desconto"></td><td><button type="button" class="ghost sm" data-rm>Remover</button></td></tr>`;
+  const linha = i => `<tr data-i="${i}"><td>${sel('perfil_icms', '', '', optsPerfis(c, 'icms'), 'aria-label="Perfil de ICMS"')}</td><td>${sel('perfil_piscofins', '', '', [['', '—'], ...optsPerfis(c, 'piscofins')], 'aria-label="Perfil de PIS/COFINS"')}</td><td><input name="cclasstrib" list="cclist" maxlength="6" inputmode="numeric" placeholder="000001" aria-label="cClassTrib"></td><td>${sel('origem', '', 0, ORIGENS, 'aria-label="Origem"')}</td><td><input name="quantidade" value="1" inputmode="decimal" aria-label="Quantidade"></td><td><input name="valor_unitario" value="100,00" inputmode="decimal" aria-label="Valor unitário"></td><td><input name="desconto" value="" inputmode="decimal" aria-label="Desconto"></td><td><button type="button" class="ghost sm" data-rm>Remover</button></td></tr>`;
   v.innerHTML = head('Simulador de cálculo', 'Monte uma venda de teste com as regras cadastradas e veja os impostos que a API calcularia. Nada é gravado nem enviado à SEFAZ.') +
-  `<form class="card" id="f"><div class="form-grid three">${sel('operacao', req('Operação'), c.operacoes[0]?.codigo, optsOps(c), 'required')}${sel('tipo_pessoa', req('Tipo de pessoa do cliente'), 'F', Object.entries(PESSOA))}${sel('modelo', 'Documento', 65, [[65, 'NFC-e (venda no PDV)'], [55, 'NF-e']])}${sel('uf_destino', 'UF de destino (NF-e)', '', [['', 'Mesma UF da empresa'], ...UFS.map(u => [u, u])])}</div>
-  <h3>Itens</h3><div class="table-wrap"><table><thead><tr><th>Perfil de ICMS</th><th>Perfil PIS/COFINS</th><th>Origem</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th></th></tr></thead><tbody id="itens">${linha(0)}</tbody></table></div>
+  `<form class="card" id="f"><div class="form-grid three">${sel('operacao', req('Operação'), c.operacoes[0]?.codigo, optsOps(c), 'required')}${sel('tipo_pessoa', req('Tipo de pessoa do cliente'), 'F', Object.entries(PESSOA))}${sel('modelo', 'Documento', 65, [[65, 'NFC-e (venda no PDV)'], [55, 'NF-e']])}${sel('uf_destino', 'UF de destino (NF-e)', '', [['', 'Mesma UF da empresa'], ...UFS.map(u => [u, u])])}${inp('pIBSUF', 'IBS UF (%) · vazio = tabela da API', '', 'inputmode="decimal"')}${inp('pIBSMun', 'IBS município (%)', '', 'inputmode="decimal"')}${inp('pCBS', 'CBS (%)', '', 'inputmode="decimal"')}</div><datalist id="cclist"></datalist>
+  <h3>Itens</h3><div class="table-wrap"><table><thead><tr><th>Perfil de ICMS</th><th>Perfil PIS/COFINS</th><th>cClassTrib</th><th>Origem</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th></th></tr></thead><tbody id="itens">${linha(0)}</tbody></table></div>
   <div class="form-actions"><button type="button" class="ghost" id="add">Adicionar item</button><button type="submit">Calcular</button></div></form><div id="res"></div>`;
   const f = $('#f', v);
+  api('/tributacao/cclasstrib').then(t => { $('#cclist', v).innerHTML = t.itens.map(i => `<option value="${esc(i.cClassTrib)}">${esc(i.cClassTrib)} · ${esc(i.nome)}${i.pRedIBS || i.pRedCBS ? ` (redução IBS ${br(i.pRedIBS)}% · CBS ${br(i.pRedCBS)}%)` : ''}</option>`).join(''); }).catch(() => {});
   let n = 1;
   $('#add', v).onclick = () => { $('#itens', v).insertAdjacentHTML('beforeend', linha(n++)); };
   $('#itens', v).onclick = ev => { if (ev.target.matches('[data-rm]') && $$('#itens tr', v).length > 1) ev.target.closest('tr').remove(); };
   bindForm(f, async d => {
-    const itens = $$('#itens tr', v).map(tr => { const g = k => $(`[name=${k}]`, tr).value; return {quantidade: num(g('quantidade')), valor_unitario: num(g('valor_unitario')), ...(g('desconto') ? {desconto: num(g('desconto'))} : {}), origem: Number(g('origem')), perfil_icms: g('perfil_icms'), ...(g('perfil_piscofins') ? {perfil_piscofins: g('perfil_piscofins')} : {})}; });
+    const itens = $$('#itens tr', v).map(tr => { const g = k => $(`[name=${k}]`, tr).value; return {quantidade: num(g('quantidade')), valor_unitario: num(g('valor_unitario')), ...(g('desconto') ? {desconto: num(g('desconto'))} : {}), origem: Number(g('origem')), perfil_icms: g('perfil_icms'), ...(g('perfil_piscofins') ? {perfil_piscofins: g('perfil_piscofins')} : {}), ...(g('cclasstrib') ? {cclasstrib: g('cclasstrib')} : {})}; });
     try {
-      const r = await api('/tributos/calcular?detalhar=1', 'POST', {modelo: Number(d.modelo), operacao: {codigo: d.operacao, tipo_pessoa: d.tipo_pessoa, ...(d.uf_destino && d.modelo === '55' ? {uf_destino: d.uf_destino} : {}), consumidor_final: true}, itens: itens.map(i => i.perfil_piscofins ? i : {...i, regra: {pis: {CST: '07'}, cofins: {CST: '07'}}})});
+      const r = await api('/tributos/calcular?detalhar=1', 'POST', {modelo: Number(d.modelo), operacao: {codigo: d.operacao, tipo_pessoa: d.tipo_pessoa, ...(d.uf_destino && d.modelo === '55' ? {uf_destino: d.uf_destino} : {}), consumidor_final: true, ...(d.pIBSUF !== '' || d.pIBSMun !== '' || d.pCBS !== '' ? {aliquotas_ibscbs: {pIBSUF: num(d.pIBSUF || '0'), pIBSMun: num(d.pIBSMun || '0'), pCBS: num(d.pCBS || '0')}} : {})}, itens: itens.map(i => i.perfil_piscofins ? i : {...i, regra: {pis: {CST: '07'}, cofins: {CST: '07'}}})});
       mostrar(r);
     } catch (e) { $('#res', v).innerHTML = ''; throw e; }
   });
   function mostrar(r) {
     const t = r.totais.ICMSTot;
     const kv = (l, x) => `<div class="kv"><span>${l}</span><b>${money(x)}</b></div>`;
-    $('#res', v).innerHTML = `<div class="card"><h2>Resultado</h2><div class="result-grid">${kv('Produtos', t.vProd)}${kv('Descontos', t.vDesc)}${kv('Base ICMS', t.vBC)}${kv('ICMS', t.vICMS)}${kv('Base ST', t.vBCST)}${kv('ICMS ST', t.vST)}${kv('PIS', t.vPIS)}${kv('COFINS', t.vCOFINS)}${kv('Total da nota', t.vNF)}</div>
+    $('#res', v).innerHTML = `<div class="card"><h2>Resultado</h2><div class="result-grid">${kv('Produtos', t.vProd)}${kv('Descontos', t.vDesc)}${kv('Base ICMS', t.vBC)}${kv('ICMS', t.vICMS)}${kv('Base ST', t.vBCST)}${kv('ICMS ST', t.vST)}${kv('PIS', t.vPIS)}${kv('COFINS', t.vCOFINS)}${r.totais.IBSCBSTot ? kv('Base IBS/CBS', r.totais.IBSCBSTot.vBCIBSCBS) + kv('IBS', r.totais.IBSCBSTot.gIBS.vIBS) + kv('CBS', r.totais.IBSCBSTot.gCBS.vCBS) : ''}${kv('Total da nota', t.vNF)}</div>
     ${r.alertas.length ? `<ul class="alerts">${r.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
-    <div class="table-wrap"><table><thead><tr><th>Item</th><th>Regra aplicada</th><th>CFOP</th><th>CST</th><th class="num">Base</th><th class="num">ICMS</th><th class="num">Base ST</th><th class="num">ICMS ST</th><th class="num">PIS</th><th class="num">COFINS</th></tr></thead><tbody>
-    ${r.itens.map(i => { const g = i.impostos.icms || {}; const ra = i.regra_aplicada?.icms; return `<tr><td>${i.item}</td><td>${ra ? esc(`${ra.perfil} · ${ra.operacao} · ${ra.uf} · ${PESSOA[ra.tipo_pessoa]}`) + `<br><small class="muted">${esc(ra.descricao)}</small>` : '—'}${i.alertas.length ? `<ul class="alerts">${i.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}<details><summary>Memória de cálculo</summary><div class="mono">${esc((i.memoria_calculo || []).join('\n'))}</div></details></td><td>${esc(i.cfop)}</td><td><span class="badge brand">${esc(g.CST || g.CSOSN || '')}</span></td><td class="num">${money(g.vBC)}</td><td class="num">${money(g.vICMS)}</td><td class="num">${money(g.vBCST)}</td><td class="num">${money(g.vICMSST)}</td><td class="num">${money(i.impostos.pis?.vPIS)}</td><td class="num">${money(i.impostos.cofins?.vCOFINS)}</td></tr>`; }).join('')}
+    <div class="table-wrap"><table><thead><tr><th>Item</th><th>Regra aplicada</th><th>CFOP</th><th>CST</th><th class="num">Base</th><th class="num">ICMS</th><th class="num">Base ST</th><th class="num">ICMS ST</th><th class="num">PIS</th><th class="num">COFINS</th><th>IBS/CBS</th><th class="num">IBS</th><th class="num">CBS</th></tr></thead><tbody>
+    ${r.itens.map(i => { const g = i.impostos.icms || {}; const ra = i.regra_aplicada?.icms; return `<tr><td>${i.item}</td><td>${ra ? esc(`${ra.perfil} · ${ra.operacao} · ${ra.uf} · ${PESSOA[ra.tipo_pessoa]}`) + `<br><small class="muted">${esc(ra.descricao)}</small>` : '—'}${i.alertas.length ? `<ul class="alerts">${i.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}<details><summary>Memória de cálculo</summary><div class="mono">${esc((i.memoria_calculo || []).join('\n'))}</div></details></td><td>${esc(i.cfop)}</td><td><span class="badge brand">${esc(g.CST || g.CSOSN || '')}</span></td><td class="num">${money(g.vBC)}</td><td class="num">${money(g.vICMS)}</td><td class="num">${money(g.vBCST)}</td><td class="num">${money(g.vICMSST)}</td><td class="num">${money(i.impostos.pis?.vPIS)}</td><td class="num">${money(i.impostos.cofins?.vCOFINS)}</td><td>${i.impostos.ibscbs ? `<span class="badge warn">${esc(i.impostos.ibscbs.CST)}</span> ${esc(i.impostos.ibscbs.cClassTrib)}` : '—'}</td><td class="num">${money(i.impostos.ibscbs?.gIBSCBS?.vIBS)}</td><td class="num">${money(i.impostos.ibscbs?.gIBSCBS?.gCBS?.vCBS)}</td></tr>`; }).join('')}
     </tbody></table></div><p class="muted">Cálculo ${esc(r.calculo_id)} · regime ${r.regime === 'simples_nacional' ? 'Simples Nacional' : 'normal'}</p></div>`;
     $('#res', v).scrollIntoView({behavior: 'smooth', block: 'start'});
   }

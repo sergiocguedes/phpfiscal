@@ -27,6 +27,8 @@ final class ItemContexto
     public ?string $pautaST = null;
     /** @var array<string,mixed>|null regra da matriz usada (perfis), quando houver */
     public ?array $regraAplicada = null;
+    /** @var array{cCredPres:string, pCredPresIBS:?string, pCredPresCBS:?string, origem:string}|null crédito presumido do IBS/CBS */
+    public ?array $credPres = null;
     public string $vICMS = '0';
 
     /**

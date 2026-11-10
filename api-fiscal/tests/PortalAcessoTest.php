@@ -93,7 +93,10 @@ final class PortalAcessoTest extends TestCase
         $s = $this->entrar($this->link()['token']);
 
         // tributação e cálculo: permitidos (com CSRF nas alterações)
-        $this->assertSame(200, $this->portal($s, 'GET', '/api/v1/tributacao')->status);
+        $cad = $this->portal($s, 'GET', '/api/v1/tributacao');
+        $this->assertSame(200, $cad->status);
+        // regime da empresa para o combo CST/CSOSN da regra de ICMS
+        $this->assertSame((int) \App\Nfe\ConfigService::get()['crt'], $this->json($cad)['crt']);
         $r = $this->portal($s, 'PUT', '/api/v1/tributacao/perfis/1', (string) json_encode(['nome' => 'PRODUTO TRIBUTADO', 'tipo' => 'icms']));
         $this->assertSame(200, $r->status, $r->body);
         $r = $this->portal($s, 'PUT', '/api/v1/tributacao/perfis/2', (string) json_encode(['nome' => 'X', 'tipo' => 'icms']), false);

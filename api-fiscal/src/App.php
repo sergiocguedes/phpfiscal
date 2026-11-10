@@ -54,6 +54,14 @@ final class App {
         $r->add('GET', "$p/admin/usuarios", [$a,'users'], $admin);
         $r->add('POST', "$p/admin/usuarios", [$a,'createUser'], $admin);
         $r->add('PUT', "$p/admin/usuarios/{id}", [$a,'updateUser'], $admin);
+        $tr=\App\Http\Controllers\TributacaoController::class;
+        $r->add('GET', "$p/admin/rtc/aliquotas", [$tr,'aliquotasIbsCbs'], $admin);
+        $r->add('POST', "$p/admin/rtc/aliquotas", [$tr,'salvarAliquotaIbsCbs'], $admin);
+        $r->add('PUT', "$p/admin/rtc/aliquotas/{id}", [$tr,'salvarAliquotaIbsCbs'], $admin);
+        $r->add('DELETE', "$p/admin/rtc/aliquotas/{id}", [$tr,'excluirAliquotaIbsCbs'], $admin);
+        $r->add('GET', "$p/admin/rtc/municipios", [$tr,'municipios'], $admin);
+        $r->add('GET', "$p/admin/rtc/cclasstrib", [$tr,'cclasstrib'], $admin);
+        $r->add('POST', "$p/admin/rtc/cclasstrib", [$tr,'importarCClassTrib'], $admin);
         $r->add('GET', "$p/admin/chaves", [$a,'keys'], $admin);
         $r->add('GET', "$p/admin/armazenamento", [$a,'storage'], $admin);
         $r->add('GET', "$p/admin/config", [$a,'apiConfig'], $admin);
@@ -118,7 +126,9 @@ final class App {
         $r->add('GET', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'detalhePisCofins'], $portal);
         $r->add('PUT', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'salvarPisCofins'], $owner + $portal);
         $r->add('DELETE', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'excluirPisCofins'], $owner + $portal);
+        $r->add('GET', "$p/tributacao/cclasstrib", [$t, 'cclasstrib'], $portal);
         $r->add('GET', "$p/tributacao/regras-iss", [$t, 'listarIss'], $portal);
+        $r->add('POST', "$p/tributacao/regras-iss/copiar", [$t, 'copiarIss'], $owner + $portal);
         $r->add('GET', "$p/tributacao/regras-iss/{codigo}", [$t, 'detalheIss'], $portal);
         $r->add('PUT', "$p/tributacao/regras-iss/{codigo}", [$t, 'salvarIss'], $owner + $portal);
         $r->add('DELETE', "$p/tributacao/regras-iss/{codigo}", [$t, 'excluirIss'], $owner + $portal);

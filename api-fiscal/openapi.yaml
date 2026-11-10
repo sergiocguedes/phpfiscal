@@ -2398,18 +2398,12 @@
               },
               "example": {
                 "inscricao_municipal": "12345678",
-                "opcao_simples_nacional": 2,
                 "regime_especial": 0,
                 "serie": 1,
                 "proximo_numero": 1,
-                "servicos": [
-                  {
-                    "nome": "Curso online",
-                    "codigo_tributacao_nacional": "080201",
-                    "nbs": "122051900",
-                    "descricao": "Curso online de WordPress (12 meses)"
-                  }
-                ]
+                "tributacao_iss": 1,
+                "retencao_iss": 1,
+                "suspensao": null
               }
             }
           }
@@ -3913,7 +3907,24 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "required": [
+                  "nome",
+                  "tipo"
+                ],
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "icms",
+                      "piscofins"
+                    ]
+                  }
+                }
               }
             }
           }
@@ -5394,38 +5405,118 @@
                   "iss": {
                     "type": "object",
                     "properties": {
-                      "tributacao_iss": {
-                        "type": "integer",
-                        "enum": [
-                          1,
-                          2,
-                          4
-                        ],
-                        "default": 1,
-                        "description": "1 tributável, 2 imunidade, 4 não incidência"
-                      },
-                      "tipo_imunidade": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 5,
-                        "description": "Só com tributacao_iss 2"
-                      },
-                      "retencao_iss": {
-                        "type": "integer",
-                        "enum": [
-                          1,
-                          2
-                        ],
-                        "default": 1,
-                        "description": "1 não retido, 2 retido pelo tomador"
-                      },
                       "aliquota_iss": {
                         "type": "number",
                         "minimum": 0,
                         "maximum": 5,
                         "description": "Só com tributacao_iss 1; omitida na DPS quando o regime/convênio não permite"
                       }
+                    },
+                    "description": "Só a alíquota; tributação, retenção e imunidade vêm do cadastro da empresa (PUT /nfse/config)"
+                  },
+                  "tipo_pessoa": {
+                    "type": "string",
+                    "enum": [
+                      "F",
+                      "J"
+                    ],
+                    "description": "Identificação da regra (tomador pessoa física ou jurídica)"
+                  },
+                  "federais": {
+                    "type": "object",
+                    "nullable": true,
+                    "required": [
+                      "cst_pis_cofins"
+                    ],
+                    "description": "PIS/COFINS, IRRF e CSLL do serviço; na emissão, sem tributos_federais no JSON, a API calcula o grupo tribFed",
+                    "properties": {
+                      "cst_pis_cofins": {
+                        "type": "string",
+                        "pattern": "^\\d{2}$"
+                      },
+                      "aliquota_pis": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "aliquota_cofins": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "aliquota_irrf": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "aliquota_csll": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "tipo_retencao": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9,
+                        "default": 0,
+                        "description": "tpRetPisCofins: 0 nada retido, 1 PIS/COFINS retidos, 2 PIS/COFINS não retidos, 3 PIS/COFINS/CSLL retidos, 4 PIS/COFINS retidos e CSLL não, 5 só PIS, 6 só COFINS, 7 COFINS/CSLL, 8 só CSLL, 9 PIS/CSLL"
+                      }
                     }
+                  },
+                  "ibs_cbs": {
+                    "type": "object",
+                    "nullable": true,
+                    "description": "Dados de IBS/CBS do serviço (a NFS-e não calcula IBS/CBS; completam o ibs_cbs informado na nota)",
+                    "properties": {
+                      "indicador_operacao": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "classificacao_tributaria": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "percentual_diferimento": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "operacao_onerosa": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "servico_exterior": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "descricao": "Consultoria para PJ",
+                  "tipo_pessoa": "J",
+                  "servico": {
+                    "codigo_tributacao_nacional": "170101",
+                    "nbs": "113011000"
+                  },
+                  "iss": {
+                    "tributacao_iss": 1,
+                    "retencao_iss": 1,
+                    "aliquota_iss": 2
+                  },
+                  "federais": {
+                    "cst_pis_cofins": "01",
+                    "aliquota_pis": 0.65,
+                    "aliquota_cofins": 3,
+                    "aliquota_irrf": 1.5,
+                    "aliquota_csll": 1,
+                    "tipo_retencao": 3
+                  },
+                  "ibs_cbs": {
+                    "indicador_operacao": "100301",
+                    "classificacao_tributaria": "000001",
+                    "operacao_onerosa": true,
+                    "servico_exterior": false
                   }
                 }
               },
@@ -5435,9 +5526,7 @@
                   "codigo_tributacao_nacional": "010501"
                 },
                 "iss": {
-                  "tributacao_iss": 1,
-                  "retencao_iss": 2,
-                  "aliquota_iss": 5
+                  "aliquota_iss": 2
                 }
               }
             }
@@ -5517,6 +5606,674 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/tributacao/cclasstrib": {
+      "get": {
+        "operationId": "listarCClassTrib",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Tabela local de cClassTrib (IBS/CBS)",
+        "description": "Somente leitura. Atualizada pelo administrador da API com bin/cclasstrib.php (planilha oficial ou API Conformidade Fácil da SVRS).",
+        "parameters": [
+          {
+            "name": "cst",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "busca",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tabela",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tabela": {
+                      "type": "object",
+                      "properties": {
+                        "carregada": {
+                          "type": "boolean"
+                        },
+                        "versao": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "atualizado_em": {
+                          "type": "string"
+                        },
+                        "origem": {
+                          "type": "string"
+                        },
+                        "total": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "itens": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "cClassTrib": {
+                            "type": "string"
+                          },
+                          "CST": {
+                            "type": "string"
+                          },
+                          "nome": {
+                            "type": "string"
+                          },
+                          "tipo_aliquota": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "pRedIBS": {
+                            "type": "number"
+                          },
+                          "pRedCBS": {
+                            "type": "number"
+                          },
+                          "dIniVig": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dFimVig": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rtc/aliquotas": {
+      "get": {
+        "operationId": "listarAliquotasIbsCbs",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Tabela de alíquotas do IBS/CBS (global)",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "municipio",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "linhas e, com data, a vigente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "incluirAliquotaIbsCbs",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Inclui linha de alíquota",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "abrangencia",
+                  "inicio",
+                  "pIBSUF",
+                  "pIBSMun",
+                  "pCBS"
+                ],
+                "properties": {
+                  "abrangencia": {
+                    "type": "string",
+                    "enum": [
+                      "nacional",
+                      "uf",
+                      "municipio"
+                    ]
+                  },
+                  "uf": {
+                    "type": "string"
+                  },
+                  "codigo_municipio": {
+                    "type": "string",
+                    "pattern": "^\\d{7}$"
+                  },
+                  "inicio": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "fim": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "pIBSUF": {
+                    "type": "number"
+                  },
+                  "pIBSMun": {
+                    "type": "number"
+                  },
+                  "pCBS": {
+                    "type": "number"
+                  },
+                  "descricao": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                },
+                "example": {
+                  "abrangencia": "municipio",
+                  "codigo_municipio": "1302603",
+                  "inicio": "2029-01-01",
+                  "pIBSUF": 1.0,
+                  "pIBSMun": 0.5,
+                  "pCBS": 8.8
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Linha incluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Vigência sobreposta para o mesmo local",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dados inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rtc/aliquotas/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "operationId": "alterarAliquotaIbsCbs",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Altera linha de alíquota",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "abrangencia",
+                  "inicio",
+                  "pIBSUF",
+                  "pIBSMun",
+                  "pCBS"
+                ],
+                "properties": {
+                  "abrangencia": {
+                    "type": "string",
+                    "enum": [
+                      "nacional",
+                      "uf",
+                      "municipio"
+                    ]
+                  },
+                  "uf": {
+                    "type": "string"
+                  },
+                  "codigo_municipio": {
+                    "type": "string",
+                    "pattern": "^\\d{7}$"
+                  },
+                  "inicio": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "fim": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "pIBSUF": {
+                    "type": "number"
+                  },
+                  "pIBSMun": {
+                    "type": "number"
+                  },
+                  "pCBS": {
+                    "type": "number"
+                  },
+                  "descricao": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                },
+                "example": {
+                  "abrangencia": "municipio",
+                  "codigo_municipio": "1302603",
+                  "inicio": "2029-01-01",
+                  "pIBSUF": 1.0,
+                  "pIBSMun": 0.5,
+                  "pCBS": 8.8
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Linha alterada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Vigência sobreposta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "excluirAliquotaIbsCbs",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Exclui linha de alíquota",
+        "responses": {
+          "204": {
+            "description": "Excluída"
+          },
+          "404": {
+            "description": "Não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rtc/municipios": {
+      "get": {
+        "operationId": "listarMunicipiosIbge",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Municípios do IBGE",
+        "parameters": [
+          {
+            "name": "uf",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "busca",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "municipios: [{codigo, nome, uf}]",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rtc/cclasstrib": {
+      "get": {
+        "operationId": "consultarCClassTribAdmin",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Tabela de cClassTrib",
+        "responses": {
+          "200": {
+            "description": "Tabela",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "importarCClassTrib",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Importa a tabela de cClassTrib (substitui inteira)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "conteudo"
+                ],
+                "properties": {
+                  "conteudo": {
+                    "type": "string",
+                    "description": "Texto do CSV da planilha oficial (aba cClassTrib) ou do JSON da API Conformidade Fácil"
+                  },
+                  "versao": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "total, incluidos, alterados, removidos e tabela",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Arquivo inválido: nada foi alterado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Só administrador central",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tributacao/regras-iss/copiar": {
+      "post": {
+        "operationId": "copiarRegraIss",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Copia uma regra de ISS para um novo código",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "origem",
+                  "destino"
+                ],
+                "properties": {
+                  "origem": {
+                    "type": "string"
+                  },
+                  "destino": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,30}$"
+                  },
+                  "descricao": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "sobrescrever": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              },
+              "example": {
+                "origem": "CONSULT-PJ",
+                "destino": "CONSULT-PF",
+                "descricao": "Consultoria para pessoa física"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Regra criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Regra de origem não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Destino já existe (use sobrescrever)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Destino inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -6108,13 +6865,64 @@
               }
             }
           }
-        ]
+        ],
+        "properties": {
+          "tributacao_iss": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4
+            ],
+            "default": 1,
+            "description": "Padrão do ISSQN da empresa: 1 tributável, 2 imunidade, 4 não incidência"
+          },
+          "tipo_imunidade": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5,
+            "description": "Só com tributacao_iss 2"
+          },
+          "retencao_iss": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "default": 1,
+            "description": "Padrão da retenção do ISSQN: 1 não retido, 2 retido pelo tomador"
+          },
+          "suspensao": {
+            "type": "object",
+            "nullable": true,
+            "description": "Suspensão da exigibilidade do ISSQN (null = nenhuma)",
+            "properties": {
+              "tipo": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2
+                ]
+              },
+              "numero_processo": {
+                "type": "string",
+                "pattern": "^\\d{30}$"
+              }
+            }
+          },
+          "opcao_simples_nacional": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "description": "Derivada do regime tributário (CRT) da empresa"
+          }
+        }
       },
       "NfseConfigInput": {
         "type": "object",
-        "required": [
-          "opcao_simples_nacional"
-        ],
         "properties": {
           "inscricao_municipal": {
             "type": "string",
@@ -6132,7 +6940,7 @@
               2,
               3
             ],
-            "description": "1 não optante, 2 MEI, 3 ME/EPP"
+            "description": "Opcional e derivada do CRT dos dados fiscais (3→1 não optante, 4→2 MEI, 1 e 2→3 ME/EPP); valor diferente é recusado"
           },
           "regime_apuracao_sn": {
             "type": "integer",
@@ -6178,6 +6986,49 @@
               "boolean",
               "null"
             ]
+          },
+          "tributacao_iss": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              4
+            ],
+            "default": 1,
+            "description": "Padrão do ISSQN da empresa: 1 tributável, 2 imunidade, 4 não incidência"
+          },
+          "tipo_imunidade": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5,
+            "description": "Só com tributacao_iss 2"
+          },
+          "retencao_iss": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "default": 1,
+            "description": "Padrão da retenção do ISSQN: 1 não retido, 2 retido pelo tomador"
+          },
+          "suspensao": {
+            "type": "object",
+            "nullable": true,
+            "description": "Suspensão da exigibilidade do ISSQN (null = nenhuma)",
+            "properties": {
+              "tipo": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2
+                ]
+              },
+              "numero_processo": {
+                "type": "string",
+                "pattern": "^\\d{30}$"
+              }
+            }
           }
         }
       },
@@ -6759,6 +7610,40 @@
                   "J",
                   "E"
                 ]
+              },
+              "aliquotas_ibscbs": {
+                "type": "object",
+                "description": "Opcional: alíquotas do IBS/CBS a usar no lugar da tabela de alíquotas da API",
+                "required": [
+                  "pIBSUF",
+                  "pIBSMun",
+                  "pCBS"
+                ],
+                "properties": {
+                  "pIBSUF": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "pIBSMun": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "pCBS": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "example": {
+                  "pIBSUF": 0.1,
+                  "pIBSMun": 0,
+                  "pCBS": 0.9
+                }
+              },
+              "credito_presumido": {
+                "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
               }
             }
           }
@@ -6910,6 +7795,14 @@
           "valor_pauta_st": {
             "description": "Só com cálculo pela API (docs/TRIBUTOS-CALCULO.md)",
             "type": "number"
+          },
+          "cclasstrib": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "cClassTrib do produto (cálculo do IBS/CBS pela API; alíquotas da tabela da API ou de calculo_tributos.aliquotas_ibscbs)"
+          },
+          "credito_presumido": {
+            "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
           }
         }
       },
@@ -8930,6 +9823,33 @@
                 "maximum": 100
               }
             }
+          },
+          "ibscbs": {
+            "type": "object",
+            "description": "IBS/CBS (Reforma Tributária, regime normal). Normalmente basta itens[].cclasstrib; CST, redução e vigência vêm da tabela local de cClassTrib.",
+            "properties": {
+              "cClassTrib": {
+                "type": "string",
+                "pattern": "^\\d{6}$"
+              },
+              "CST": {
+                "type": "string",
+                "enum": [
+                  "000",
+                  "200",
+                  "400",
+                  "410",
+                  "510"
+                ],
+                "description": "Opcional: derivado do cClassTrib"
+              },
+              "pDif": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "CST 510: percentual de diferimento"
+              }
+            }
           }
         }
       },
@@ -8963,6 +9883,10 @@
               },
               "uf": {
                 "type": "string"
+              },
+              "codigo_municipio": {
+                "type": "string",
+                "pattern": "^\\d{7}$"
               }
             }
           },
@@ -8997,6 +9921,50 @@
                   "E"
                 ],
                 "default": "F"
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data da operação (padrão: hoje, horário de Brasília). Vigência do cClassTrib e se vItem soma IBS/CBS (2027+)."
+              },
+              "aliquotas_ibscbs": {
+                "type": "object",
+                "description": "Opcional: alíquotas do IBS/CBS a usar no lugar da tabela de alíquotas da API",
+                "required": [
+                  "pIBSUF",
+                  "pIBSMun",
+                  "pCBS"
+                ],
+                "properties": {
+                  "pIBSUF": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "pIBSMun": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "pCBS": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "example": {
+                  "pIBSUF": 0.1,
+                  "pIBSMun": 0,
+                  "pCBS": 0.9
+                }
+              },
+              "municipio_destino": {
+                "type": "string",
+                "pattern": "^\\d{7}$",
+                "description": "Código IBGE do município de destino: escolhe as alíquotas de IBS/CBS (sem ele, o município do emitente)"
+              },
+              "credito_presumido": {
+                "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
               }
             }
           },
@@ -9074,6 +10042,14 @@
                 },
                 "valor_pauta_st": {
                   "type": "number"
+                },
+                "cclasstrib": {
+                  "type": "string",
+                  "pattern": "^\\d{6}$",
+                  "description": "cClassTrib do produto (tabela local): habilita o cálculo do IBS/CBS"
+                },
+                "credito_presumido": {
+                  "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
                 }
               }
             }
@@ -9125,7 +10101,7 @@
                 },
                 "impostos": {
                   "type": "object",
-                  "description": "icms, ipi, pis, cofins, issqn com tags do leiaute: pode ser copiado para itens[].impostos do POST /nfe e /pdv/nfce"
+                  "description": "icms, ipi, pis, cofins, issqn e ibscbs com tags do leiaute: pode ser copiado para itens[].impostos do POST /nfe e /pdv/nfce"
                 },
                 "valor_aproximado_tributos": {
                   "type": "number"
@@ -9151,6 +10127,10 @@
                     "type": "string"
                   },
                   "description": "Só com ?detalhar=1"
+                },
+                "valor_item": {
+                  "type": "number",
+                  "description": "vItem (NT 2025.002), presente quando há IBS/CBS"
                 }
               }
             }
@@ -9166,6 +10146,14 @@
               },
               "vCredICMSSN": {
                 "type": "number"
+              },
+              "IBSCBSTot": {
+                "type": "object",
+                "description": "Totais do IBS/CBS (tags do grupo IBSCBSTot)"
+              },
+              "vNFTot": {
+                "type": "number",
+                "description": "Soma dos vItem"
               }
             }
           },
@@ -9174,7 +10162,50 @@
             "items": {
               "type": "string"
             }
+          },
+          "ibscbs": {
+            "type": "object",
+            "description": "Fotografia do IBS/CBS: alíquotas usadas, origem (informada, tabela ou lei), município e versão da tabela de cClassTrib"
           }
+        }
+      },
+      "CreditoPresumidoIbsCbs": {
+        "type": "object",
+        "nullable": true,
+        "required": [
+          "cCredPres"
+        ],
+        "description": "Crédito presumido do IBS/CBS (gCredPresOper). Na operação vale para todos os itens; no item troca ou anula (null). Base = base do IBS/CBS; valor = base × percentual.",
+        "properties": {
+          "cCredPres": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,2}$"
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 99
+              }
+            ],
+            "description": "Código da tabela cCredPres"
+          },
+          "pCredPresIBS": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "pCredPresCBS": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "example": {
+          "cCredPres": 1,
+          "pCredPresIBS": 1,
+          "pCredPresCBS": 3
         }
       }
     },
