@@ -79,8 +79,8 @@ function bindForm(form, fn) {
 }
 let cadCache = null;
 async function cad(force = false) { if (!cadCache || force) cadCache = await api('/tributacao'); return cadCache; }
-const TIPOS_PERFIL = {icms: ['ICMS', 'brand'], piscofins: ['PIS/COFINS', 'ok']};
-const optsPerfis = (c, tipo, todos) => [...(todos ? [['', todos]] : []), ...c.perfis.filter(p => p.tipo === tipo).map(p => [p.codigo, `${p.codigo} · ${p.nome}`])];
+const caixas = (nome, lista, marcados, wide) => `<div class="checks ${wide ? 'wide' : ''}">${lista.map(([x, l]) => `<label><input type="checkbox" name="${nome}" value="${esc(x)}" ${marcados.includes(x) ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>`;
+const optsPerfis = (c, tipo, todos) => [...(todos ? [['', todos]] : []), ...c.perfis.map(p => [p.codigo, `${p.codigo} · ${p.nome}`])]; // um perfil vale para ICMS e PIS/COFINS
 const optsOps = (c, todos) => [...(todos ? [['', todos]] : []), ...c.operacoes.map(o => [o.codigo, `${o.codigo} · ${o.nome}`])];
 
 // ---------------------------------------------------------------- entrada
@@ -145,9 +145,8 @@ const go = h => { if (location.hash === h) route(); else location.hash = h; };
 // ---------------------------------------------------------------- início
 async function inicio(v) {
   const [c, icms, pc] = await Promise.all([cad(true), api('/tributacao/regras-icms'), api('/tributacao/regras-piscofins')]);
-  const n = t => c.perfis.filter(p => p.tipo === t).length;
   v.innerHTML = head(`Olá, ${(ctx.usuario.nome || '').split(' ')[0]}`, 'Regras tributárias usadas pela API no cálculo das notas desta empresa. O produto informa o perfil, a venda informa a operação e a API encontra a regra pela UF de destino e pelo tipo de pessoa do cliente.') +
-  `<div class="stats"><div class="stat"><b>${n('icms')}</b><span>Perfis de ICMS</span></div><div class="stat"><b>${n('piscofins')}</b><span>Perfis de PIS/COFINS</span></div><div class="stat"><b>${c.operacoes.length}</b><span>Operações</span></div><div class="stat"><b>${icms.regras.length}</b><span>Regras de ICMS</span></div><div class="stat"><b>${pc.regras.length}</b><span>Regras de PIS/COFINS</span></div></div>
+  `<div class="stats"><div class="stat"><b>${c.perfis.length}</b><span>Perfis tributários</span></div><div class="stat"><b>${c.operacoes.length}</b><span>Operações</span></div><div class="stat"><b>${icms.regras.length}</b><span>Regras de ICMS</span></div><div class="stat"><b>${pc.regras.length}</b><span>Regras de PIS/COFINS</span></div></div>
   <div class="card"><h2>Atalhos</h2><div class="quick">
   <a href="#/regras-icms"><strong>Regras de ICMS</strong><span>CST, CFOP, alíquotas, redução de base, ST e IPI por UF e tipo de pessoa.</span></a>
   <a href="#/regras-piscofins"><strong>Regras de PIS/COFINS</strong><span>CST e alíquotas por perfil e operação.</span></a>
@@ -160,16 +159,16 @@ async function inicio(v) {
 async function perfis(v, [acao, codigo]) {
   const c = await cad(true);
   if (acao === 'novo' || acao === 'editar') {
-    const p = acao === 'editar' ? c.perfis.find(x => x.codigo === codigo) : {codigo: '', nome: '', tipo: 'icms'};
+    const p = acao === 'editar' ? c.perfis.find(x => x.codigo === codigo) : {codigo: '', nome: ''};
     if (!p) return go('#/perfis');
-    v.innerHTML = head(acao === 'novo' ? 'Novo perfil tributário' : 'Alterar perfil tributário', 'O perfil é a "tributação" do produto (ex.: 1 · Produto tributado, 2 · Produto substituição). O produto no sistema informa o código do perfil de ICMS e o de PIS/COFINS (e o cClassTrib, para o IBS/CBS).', '', '<a href="#/perfis">Perfis tributários</a> / ' + (acao === 'novo' ? 'Novo' : esc(p.codigo))) +
-    `<form class="card" id="f"><div class="form-grid three">${inp('codigo', req('Código'), p.codigo, `required maxlength="30" pattern="[A-Za-z0-9_\\-]+" ${acao === 'editar' ? 'disabled' : ''}`)}${inp('nome', req('Nome'), p.nome, `required maxlength="60" ${ro()}`)}${sel('tipo', req('Tipo'), p.tipo, Object.entries(TIPOS_PERFIL).map(([k, [l]]) => [k, l]), ro())}</div>
+    v.innerHTML = head(acao === 'novo' ? 'Novo perfil tributário' : 'Alterar perfil tributário', 'O perfil é a "tributação" do produto (ex.: 1 · Produto tributado, 2 · Produto substituição) e vale para as regras de ICMS e de PIS/COFINS. O produto no sistema informa o código do perfil (e o cClassTrib, para o IBS/CBS).', '', '<a href="#/perfis">Perfis tributários</a> / ' + (acao === 'novo' ? 'Novo' : esc(p.codigo))) +
+    `<form class="card" id="f"><div class="form-grid three">${inp('codigo', 'Código', p.codigo || 'automático', 'disabled')}<div class="span2">${inp('nome', req('Nome'), p.nome, `required maxlength="60" ${ro()}`)}</div></div>
     <div class="form-actions"><a class="btn ghost" href="#/perfis">Voltar</a>${pode() ? '<button type="submit">Salvar perfil</button>' : ''}</div></form>`;
-    bindForm($('#f', v), async d => { await api('/tributacao/perfis/' + enc(p.codigo || d.codigo), 'PUT', {nome: d.nome, tipo: d.tipo}); toast('Perfil salvo.'); go('#/perfis'); });
+    bindForm($('#f', v), async d => { const n = p.codigo ? await api('/tributacao/perfis/' + enc(p.codigo), 'PUT', {nome: d.nome}) : await api('/tributacao/perfis', 'POST', {nome: d.nome}); toast(`Perfil ${n.codigo} salvo.`); go('#/perfis'); });
     return;
   }
-  v.innerHTML = head('Perfis tributários', 'Tributação de ICMS e de PIS/COFINS atribuída aos produtos.', pode() ? '<a class="btn" href="#/perfis/novo">Novo perfil</a>' : '') +
-  `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th></th></tr></thead><tbody>${c.perfis.map(p => `<tr><td><b>${esc(p.codigo)}</b></td><td>${esc(p.nome)}</td><td><span class="badge ${(TIPOS_PERFIL[p.tipo] || [])[1] || ''}">${esc((TIPOS_PERFIL[p.tipo] || [p.tipo])[0])}</span></td><td class="actions"><a class="btn ghost sm" href="#/perfis/editar/${enc(p.codigo)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <button type="button" class="danger sm" data-del="${esc(p.codigo)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhum perfil cadastrado.</td></tr>'}</tbody></table></div></div>`;
+  v.innerHTML = head('Perfis tributários', 'Tributação atribuída aos produtos: o mesmo perfil vale para as regras de ICMS e de PIS/COFINS.', pode() ? '<a class="btn" href="#/perfis/novo">Novo perfil</a>' : '') +
+  `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th></th></tr></thead><tbody>${c.perfis.map(p => `<tr><td><b>${esc(p.codigo)}</b></td><td>${esc(p.nome)}</td><td class="actions"><a class="btn ghost sm" href="#/perfis/editar/${enc(p.codigo)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <button type="button" class="danger sm" data-del="${esc(p.codigo)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">Nenhum perfil cadastrado.</td></tr>'}</tbody></table></div></div>`;
   $$('[data-del]', v).forEach(b => b.onclick = async () => { if (!await confirmar('Excluir perfil', `Excluir o perfil ${b.dataset.del}? Perfis com regras não podem ser excluídos.`)) return; try { await api('/tributacao/perfis/' + enc(b.dataset.del), 'DELETE'); toast('Perfil excluído.'); route(); } catch (e) { fail(e); } });
 }
 async function operacoes(v, [acao, codigo]) {
@@ -178,9 +177,9 @@ async function operacoes(v, [acao, codigo]) {
     const o = acao === 'editar' ? c.operacoes.find(x => x.codigo === codigo) : {codigo: '', nome: ''};
     if (!o) return go('#/operacoes');
     v.innerHTML = head(acao === 'novo' ? 'Nova operação' : 'Alterar operação', 'A operação equivale à natureza de operação do sistema (venda, devolução, remessa…). O nome vai para a natureza da operação da nota quando ela não é informada.', '', '<a href="#/operacoes">Operações</a> / ' + (acao === 'novo' ? 'Nova' : esc(o.codigo))) +
-    `<form class="card" id="f"><div class="form-grid">${inp('codigo', req('Código'), o.codigo, `required maxlength="30" pattern="[A-Za-z0-9_\\-]+" ${acao === 'editar' ? 'disabled' : ''}`)}${inp('nome', req('Nome'), o.nome, `required maxlength="60" placeholder="VENDA DE PRODUTOS" ${ro()}`)}</div>
+    `<form class="card" id="f"><div class="form-grid">${inp('codigo', 'Código', o.codigo || 'automático', 'disabled')}${inp('nome', req('Nome'), o.nome, `required maxlength="60" placeholder="VENDA DE PRODUTOS" ${ro()}`)}</div>
     <div class="form-actions"><a class="btn ghost" href="#/operacoes">Voltar</a>${pode() ? '<button type="submit">Salvar operação</button>' : ''}</div></form>`;
-    bindForm($('#f', v), async d => { await api('/tributacao/operacoes/' + enc(o.codigo || d.codigo), 'PUT', {nome: d.nome}); toast('Operação salva.'); go('#/operacoes'); });
+    bindForm($('#f', v), async d => { const n = o.codigo ? await api('/tributacao/operacoes/' + enc(o.codigo), 'PUT', {nome: d.nome}) : await api('/tributacao/operacoes', 'POST', {nome: d.nome}); toast(`Operação ${n.codigo} salva.`); go('#/operacoes'); });
     return;
   }
   v.innerHTML = head('Operações', 'Naturezas de operação usadas para encontrar as regras.', pode() ? '<a class="btn" href="#/operacoes/novo">Nova operação</a>' : '') +
@@ -231,11 +230,12 @@ async function formIcms(v, c, chave) {
   v.innerHTML = head(chave ? 'Alterar regra de ICMS' : 'Nova regra de ICMS', 'Somente os campos do CST escolhido são exibidos. Campos com * são obrigatórios.', '', '<a href="#/regras-icms">Regras de ICMS</a> / ' + (chave ? esc(`${r.perfil} · ${r.operacao} · ${r.uf} · ${PESSOA[r.tipo_pessoa]}`) : 'Nova')) +
   `<form class="card" id="f"><div class="form-grid">
   <div class="section-title">Aplicação da regra</div>
-  ${sel('perfil', req('Perfil de ICMS'), r.perfil, optsPerfis(c, 'icms'), chave ? 'disabled' : 'required')}${sel('operacao', req('Operação'), r.operacao, optsOps(c), chave ? 'disabled' : 'required')}
+  ${sel('perfil', req('Perfil tributário'), r.perfil, optsPerfis(c, 'icms'), chave ? 'disabled' : 'required')}${sel('operacao', req('Operação'), r.operacao, optsOps(c), chave ? 'disabled' : 'required')}
   ${sel('uf', req('UF de destino'), r.uf, UFS.map(u => [u, u]), chave ? 'disabled' : 'required')}${sel('tipo_pessoa', req('Tipo de pessoa'), r.tipo_pessoa, Object.entries(PESSOA), chave ? 'disabled' : '')}
   ${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" placeholder="Identificação da regra" ${ro()}`)}${inp('cfop', req('CFOP'), r.cfop, `required pattern="[1-35-7][0-9]{3}" inputmode="numeric" ${ro()}`)}
   <div class="section-title">ICMS</div>
   <label class="full">${req(csosn === null ? 'CST / CSOSN' : csosn ? 'CSOSN (Simples Nacional / MEI)' : 'CST (regime normal)')}<select name="cst" ${ro()}>${listaCst.map(([x, t]) => `<option value="${x}" ${x === cst ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+  ${csosn === null ? '<p class="hint full">O regime tributário da empresa não está cadastrado (dados fiscais da empresa no painel da API). Por isso a lista mostra CST e CSOSN.</p>' : ''}
   ${fora ? `<p class="hint full">O código ${esc(cst)} desta regra não corresponde ao regime da empresa (${csosn ? 'Simples Nacional/MEI usa CSOSN de 3 dígitos' : 'regime normal usa CST de 2 dígitos'}). Escolha um código da lista para corrigir.</p>` : ''}
   </div><div class="form-grid" id="campos"></div>
   <div class="form-grid"><div class="section-title">IPI (somente NF-e)</div>${inp('ipi_cst', 'CST do IPI', r.ipi?.CST, `pattern="[0-9]{2}" placeholder="Ex.: 52" ${ro()}`)}${inp('ipi_cenq', 'Enquadramento legal', r.ipi?.cEnq || '999', `pattern="[0-9]{3}" ${ro()}`)}${inp('ipi_p', 'Alíquota do IPI (%)', br(r.ipi?.pIPI), `inputmode="decimal" ${ro()}`)}</div>
@@ -265,11 +265,10 @@ async function copiarIcms(v, c, chave) {
   const {regras} = await api(`/tributacao/regras-icms?perfil=${enc(p)}&operacao=${enc(o)}&uf=${enc(u)}`);
   const r = regras.find(x => x.tipo_pessoa === t);
   if (!r || !pode()) return go('#/regras-icms');
-  const caixas = (nome, lista, marcados, wide) => `<div class="checks ${wide ? 'wide' : ''}">${lista.map(([x, l]) => `<label><input type="checkbox" name="${nome}" value="${esc(x)}" ${marcados.includes(x) ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>`;
   v.innerHTML = head('Copiar regra de ICMS', `Origem: <b>${esc(r.perfil)} · ${esc(r.operacao)} · ${esc(r.uf)} · ${PESSOA[r.tipo_pessoa]}</b> — ${esc(r.descricao)} (CST ${esc(r.icms.CST || r.icms.CSOSN)}, CFOP ${esc(r.cfop)}). Será criada uma regra para cada combinação marcada.`, '', '<a href="#/regras-icms">Regras de ICMS</a> / Copiar') +
   `<form class="card" id="f"><fieldset><legend>UFs de destino <button type="button" class="link" id="todas">marcar todas</button> · <button type="button" class="link" id="nenhuma">desmarcar</button></legend>${caixas('ufs', UFS.map(x => [x, x]), [r.uf])}</fieldset>
   <div class="form-grid"><fieldset><legend>Tipos de pessoa</legend>${caixas('tipos', Object.entries(PESSOA), [r.tipo_pessoa])}</fieldset>
-  <fieldset><legend>Perfis de ICMS</legend>${caixas('perfis', optsPerfis(c, 'icms'), [r.perfil], true)}</fieldset>
+  <fieldset><legend>Perfis tributários</legend>${caixas('perfis', optsPerfis(c, 'icms'), [r.perfil], true)}</fieldset>
   <fieldset class="full"><legend>Operações</legend>${caixas('ops', optsOps(c), [r.operacao], true)}</fieldset>
   <label class="inline-check full"><input type="checkbox" name="sobrescrever"> Substituir regras que já existem nas combinações marcadas</label></div>
   <p class="muted" id="resumo"></p>
@@ -290,12 +289,27 @@ async function copiarIcms(v, c, chave) {
 // ---------------------------------------------------------------- regras de PIS/COFINS
 async function regrasPc(v, [acao, p, o]) {
   const c = await cad(true);
+  if (acao === 'copiar') {
+    const {regras} = await api(`/tributacao/regras-piscofins?perfil=${enc(p)}&operacao=${enc(o)}`); const r = regras[0];
+    if (!r) return go('#/regras-piscofins');
+    v.innerHTML = head('Copiar regra de PIS/COFINS', `Origem: <b>${esc(r.perfil)} · ${esc(r.operacao)}</b> — ${esc(r.descricao)} (PIS ${esc(r.pis.CST)} · COFINS ${esc(r.cofins.CST)}). Marque para quais perfis e operações copiar.`, '', '<a href="#/regras-piscofins">Regras de PIS/COFINS</a> / Copiar') +
+    `<form class="card" id="f"><div class="form-grid"><fieldset><legend>Perfis tributários</legend>${caixas('perfis', optsPerfis(c), [r.perfil], true)}</fieldset>
+    <fieldset><legend>Operações</legend>${caixas('operacoes', optsOps(c), [r.operacao], true)}</fieldset>
+    <label class="check"><input type="checkbox" name="sobrescrever"> Substituir regras que já existem</label></div>
+    <div class="form-actions"><a class="btn ghost" href="#/regras-piscofins">Voltar</a><button type="submit">Copiar regra</button></div></form>`;
+    const marc = n => $$(`[name=${n}]:checked`, v).map(x => x.value);
+    bindForm($('#f', v), async d => {
+      const res = await api('/tributacao/regras-piscofins/copiar', 'POST', {origem: {perfil: r.perfil, operacao: r.operacao}, destino: {perfis: marc('perfis'), operacoes: marc('operacoes')}, sobrescrever: !!d.sobrescrever});
+      toast(`${res.criadas} criada(s), ${res.sobrescritas} substituída(s)${res.ignoradas.length ? `, ${res.ignoradas.length} já existia(m)` : ''}.`); go('#/regras-piscofins');
+    });
+    return;
+  }
   if (acao === 'novo' || acao === 'editar') {
     let r = {perfil: '', operacao: '', descricao: '', pis: {CST: '01'}, cofins: {CST: '01'}};
     if (acao === 'editar') { const {regras} = await api(`/tributacao/regras-piscofins?perfil=${enc(p)}&operacao=${enc(o)}`); r = regras[0]; if (!r) return go('#/regras-piscofins'); }
     const grupo = (g, ap, x) => `<div class="section-title">${g.toUpperCase()}</div>${sel(g + '_cst', req('CST ' + g.toUpperCase()), x.CST, CST_PC, ro())}${inp(g + '_p', `Alíquota ${g.toUpperCase()} (%)`, br(x[ap]), `inputmode="decimal" ${ro()}`)}${inp(g + '_q', 'Valor por unidade (R$) · CST 03', br(x.vAliqProd), `inputmode="decimal" ${ro()}`)}`;
     v.innerHTML = head(acao === 'novo' ? 'Nova regra de PIS/COFINS' : 'Alterar regra de PIS/COFINS', 'CST 01/02: alíquota obrigatória · CST 03: valor por unidade · CST 04 a 09: sem alíquota.', '', '<a href="#/regras-piscofins">Regras de PIS/COFINS</a> / ' + (acao === 'novo' ? 'Nova' : esc(`${r.perfil} · ${r.operacao}`))) +
-    `<form class="card" id="f"><div class="form-grid three">${sel('perfil', req('Perfil de PIS/COFINS'), r.perfil, optsPerfis(c, 'piscofins'), acao === 'editar' ? 'disabled' : 'required')}${sel('operacao', req('Operação'), r.operacao, optsOps(c), acao === 'editar' ? 'disabled' : 'required')}${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" ${ro()}`)}
+    `<form class="card" id="f"><div class="form-grid three">${sel('perfil', req('Perfil tributário'), r.perfil, optsPerfis(c, 'piscofins'), acao === 'editar' ? 'disabled' : 'required')}${sel('operacao', req('Operação'), r.operacao, optsOps(c), acao === 'editar' ? 'disabled' : 'required')}${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" ${ro()}`)}
     ${grupo('pis', 'pPIS', r.pis)}${grupo('cofins', 'pCOFINS', r.cofins)}</div>
     <div class="form-actions"><a class="btn ghost" href="#/regras-piscofins">Voltar</a>${pode() ? '<button type="submit">Salvar regra</button>' : ''}</div></form>`;
     const g = (d, n, ap) => ({CST: d[n + '_cst'], ...(d[n + '_p'] ? {[ap]: num(d[n + '_p'])} : {}), ...(d[n + '_q'] ? {vAliqProd: num(d[n + '_q'])} : {})});
@@ -304,9 +318,9 @@ async function regrasPc(v, [acao, p, o]) {
   }
   const {regras} = await api('/tributacao/regras-piscofins');
   const al = (x, ap) => x.vAliqProd != null ? 'R$ ' + br(x.vAliqProd) : br(x[ap]);
-  v.innerHTML = head('Regras de PIS/COFINS', 'Uma regra por perfil de PIS/COFINS e operação.', pode() ? '<a class="btn" href="#/regras-piscofins/novo">Nova regra</a>' : '') +
+  v.innerHTML = head('Regras de PIS/COFINS', 'Uma regra por perfil tributário e operação.', pode() ? '<a class="btn" href="#/regras-piscofins/novo">Nova regra</a>' : '') +
   `<div class="card flush"><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Operação</th><th>CST PIS</th><th class="num">PIS</th><th>CST COFINS</th><th class="num">COFINS</th><th>Descrição</th><th></th></tr></thead><tbody>
-  ${regras.map(r => `<tr><td>${esc(r.perfil)}</td><td>${esc(r.operacao)}</td><td><span class="badge ok">${esc(r.pis.CST)}</span></td><td class="num">${al(r.pis, 'pPIS')}</td><td><span class="badge ok">${esc(r.cofins.CST)}</span></td><td class="num">${al(r.cofins, 'pCOFINS')}</td><td>${esc(r.descricao)}</td><td class="actions"><a class="btn ghost sm" href="#/regras-piscofins/editar/${enc(r.perfil)}/${enc(r.operacao)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <button type="button" class="danger sm" data-del="${enc(r.perfil)}/${enc(r.operacao)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhuma regra cadastrada.</td></tr>'}
+  ${regras.map(r => `<tr><td>${esc(r.perfil)}</td><td>${esc(r.operacao)}</td><td><span class="badge ok">${esc(r.pis.CST)}</span></td><td class="num">${al(r.pis, 'pPIS')}</td><td><span class="badge ok">${esc(r.cofins.CST)}</span></td><td class="num">${al(r.cofins, 'pCOFINS')}</td><td>${esc(r.descricao)}</td><td class="actions"><a class="btn ghost sm" href="#/regras-piscofins/editar/${enc(r.perfil)}/${enc(r.operacao)}">${pode() ? 'Alterar' : 'Ver'}</a>${pode() ? ` <a class="btn ghost sm" href="#/regras-piscofins/copiar/${enc(r.perfil)}/${enc(r.operacao)}">Copiar</a> <button type="button" class="danger sm" data-del="${enc(r.perfil)}/${enc(r.operacao)}">Excluir</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">Nenhuma regra cadastrada.</td></tr>'}
   </tbody></table></div><div class="count">${regras.length} regra(s)</div></div>`;
   $$('[data-del]', v).forEach(b => b.onclick = async () => { if (!await confirmar('Excluir regra de PIS/COFINS', `Excluir a regra ${decodeURIComponent(b.dataset.del).replace('/', ' · ')}?`)) return; try { await api('/tributacao/regras-piscofins/' + b.dataset.del, 'DELETE'); toast('Regra excluída.'); route(); } catch (e) { fail(e); } });
 }
@@ -334,7 +348,7 @@ async function regrasIss(v, [acao, codigo]) {
     const cod = r.servico.codigo_tributacao_nacional || '';
     const fe = r.federais || {}, ib = r.ibs_cbs || {};
     v.innerHTML = head(acao === 'novo' ? 'Nova regra de ISS' : 'Alterar regra de ISS', 'Usada na emissão da NFS-e: o sistema informa <code>regra_iss</code> e a API preenche o serviço e o ISS. O que o sistema enviar na nota prevalece.', '', '<a href="#/regras-iss">Regras de ISS</a> / ' + (acao === 'novo' ? 'Nova' : esc(r.codigo))) +
-    `<form class="card" id="f"><div class="form-grid three">${inp('codigo', req('Código da regra'), r.codigo, `required maxlength="30" pattern="[A-Za-z0-9_\\-]+" ${acao === 'editar' ? 'disabled' : ''}`)}<div class="span2">${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" ${ro()}`)}</div>
+    `<form class="card" id="f"><div class="form-grid three">${inp('codigo', 'Código da regra', r.codigo || 'automático', 'disabled')}<div class="span2">${inp('descricao', req('Descrição da regra'), r.descricao, `required maxlength="120" ${ro()}`)}</div>
     <div class="section-title">SERVIÇO</div>
     ${pode() ? `<label>Buscar na lista nacional<input id="busca" placeholder="Código ou parte da descrição" autocomplete="off"></label>` : ''}
     <div class="span2"><label>${req('Código de tributação nacional')}<select name="ctn" id="ctn" required ${ro()}>${cod ? `<option value="${esc(cod)}">${esc(cod)}${r.servico_descricao ? ' · ' + esc(r.servico_descricao) : ''}</option>` : '<option value="">Busque o serviço ao lado</option>'}</select></label></div>
@@ -358,12 +372,13 @@ async function regrasIss(v, [acao, codigo]) {
       try { const {servicos} = await api('/nfse/servicos-nacionais?busca=' + enc(q)); $('#ctn', f).innerHTML = servicos.length ? servicos.map(s => `<option value="${esc(s.codigo)}">${esc(s.codigo)} · ${esc(s.descricao)}</option>`).join('') : '<option value="">Nenhum serviço encontrado</option>'; } catch (e) { fail(e); }
     }, 300); };
     bindForm(f, async d => {
-      const k = acao === 'editar' ? r.codigo : d.codigo;
       const servico = {codigo_tributacao_nacional: d.ctn, ...(d.nbs ? {nbs: d.nbs.replace(/\D/g, '')} : {}), ...(d.ctm ? {codigo_tributacao_municipal: d.ctm} : {}), ...(d.ci ? {codigo_interno: d.ci} : {})};
       const iss = d.aliq ? {aliquota_iss: num(d.aliq)} : {};
       const federais = d.cstpc ? {cst_pis_cofins: d.cstpc, tipo_retencao: Number(d.tret), ...Object.fromEntries([['aliquota_pis', d.ppis], ['aliquota_cofins', d.pcof], ['aliquota_irrf', d.pirrf], ['aliquota_csll', d.pcsll]].filter(([, x]) => x).map(([key, x]) => [key, num(x)]))} : null;
       const ibs_cbs = {operacao_onerosa: !!f.oner.checked, servico_exterior: !!f.ext.checked, ...(d.indop ? {indicador_operacao: d.indop} : {}), ...(d.cct ? {classificacao_tributaria: d.cct} : {}), ...(d.pdif ? {percentual_diferimento: num(d.pdif)} : {})};
-      await api('/tributacao/regras-iss/' + enc(k), 'PUT', {descricao: d.descricao, ...(d.tp ? {tipo_pessoa: d.tp} : {}), servico, iss, federais, ibs_cbs}); toast('Regra salva.'); go('#/regras-iss');
+      const corpo = {descricao: d.descricao, ...(d.tp ? {tipo_pessoa: d.tp} : {}), servico, iss, federais, ibs_cbs};
+      const n = acao === 'editar' ? await api('/tributacao/regras-iss/' + enc(r.codigo), 'PUT', corpo) : await api('/tributacao/regras-iss', 'POST', corpo);
+      toast(`Regra ${n.codigo} salva.`); go('#/regras-iss');
     });
     return;
   }
@@ -378,10 +393,10 @@ async function regrasIss(v, [acao, codigo]) {
 // ---------------------------------------------------------------- simulador
 async function simulador(v) {
   const c = await cad(true);
-  const linha = i => `<tr data-i="${i}"><td>${sel('perfil_icms', '', '', optsPerfis(c, 'icms'), 'aria-label="Perfil de ICMS"')}</td><td>${sel('perfil_piscofins', '', '', [['', '—'], ...optsPerfis(c, 'piscofins')], 'aria-label="Perfil de PIS/COFINS"')}</td><td><input name="cclasstrib" list="cclist" maxlength="6" inputmode="numeric" placeholder="000001" aria-label="cClassTrib"></td><td>${sel('origem', '', 0, ORIGENS, 'aria-label="Origem"')}</td><td><input name="quantidade" value="1" inputmode="decimal" aria-label="Quantidade"></td><td><input name="valor_unitario" value="100,00" inputmode="decimal" aria-label="Valor unitário"></td><td><input name="desconto" value="" inputmode="decimal" aria-label="Desconto"></td><td><button type="button" class="ghost sm" data-rm>Remover</button></td></tr>`;
+  const linha = i => `<tr data-i="${i}"><td>${sel('perfil', '', '', optsPerfis(c), 'aria-label="Perfil tributário"')}</td><td><input name="cclasstrib" list="cclist" maxlength="6" inputmode="numeric" placeholder="000001" aria-label="cClassTrib"></td><td>${sel('origem', '', 0, ORIGENS, 'aria-label="Origem"')}</td><td><input name="quantidade" value="1" inputmode="decimal" aria-label="Quantidade"></td><td><input name="valor_unitario" value="100,00" inputmode="decimal" aria-label="Valor unitário"></td><td><input name="desconto" value="" inputmode="decimal" aria-label="Desconto"></td><td><button type="button" class="ghost sm" data-rm>Remover</button></td></tr>`;
   v.innerHTML = head('Simulador de cálculo', 'Monte uma venda de teste com as regras cadastradas e veja os impostos que a API calcularia. Nada é gravado nem enviado à SEFAZ.') +
   `<form class="card" id="f"><div class="form-grid three">${sel('operacao', req('Operação'), c.operacoes[0]?.codigo, optsOps(c), 'required')}${sel('tipo_pessoa', req('Tipo de pessoa do cliente'), 'F', Object.entries(PESSOA))}${sel('modelo', 'Documento', 65, [[65, 'NFC-e (venda no PDV)'], [55, 'NF-e']])}${sel('uf_destino', 'UF de destino (NF-e)', '', [['', 'Mesma UF da empresa'], ...UFS.map(u => [u, u])])}${inp('pIBSUF', 'IBS UF (%) · vazio = tabela da API', '', 'inputmode="decimal"')}${inp('pIBSMun', 'IBS município (%)', '', 'inputmode="decimal"')}${inp('pCBS', 'CBS (%)', '', 'inputmode="decimal"')}</div><datalist id="cclist"></datalist>
-  <h3>Itens</h3><div class="table-wrap"><table><thead><tr><th>Perfil de ICMS</th><th>Perfil PIS/COFINS</th><th>cClassTrib</th><th>Origem</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th></th></tr></thead><tbody id="itens">${linha(0)}</tbody></table></div>
+  <h3>Itens</h3><div class="table-wrap"><table><thead><tr><th>Perfil tributário</th><th>cClassTrib</th><th>Origem</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th></th></tr></thead><tbody id="itens">${linha(0)}</tbody></table></div>
   <div class="form-actions"><button type="button" class="ghost" id="add">Adicionar item</button><button type="submit">Calcular</button></div></form><div id="res"></div>`;
   const f = $('#f', v);
   api('/tributacao/cclasstrib').then(t => { $('#cclist', v).innerHTML = t.itens.map(i => `<option value="${esc(i.cClassTrib)}">${esc(i.cClassTrib)} · ${esc(i.nome)}${i.pRedIBS || i.pRedCBS ? ` (redução IBS ${br(i.pRedIBS)}% · CBS ${br(i.pRedCBS)}%)` : ''}</option>`).join(''); }).catch(() => {});
@@ -389,7 +404,7 @@ async function simulador(v) {
   $('#add', v).onclick = () => { $('#itens', v).insertAdjacentHTML('beforeend', linha(n++)); };
   $('#itens', v).onclick = ev => { if (ev.target.matches('[data-rm]') && $$('#itens tr', v).length > 1) ev.target.closest('tr').remove(); };
   bindForm(f, async d => {
-    const itens = $$('#itens tr', v).map(tr => { const g = k => $(`[name=${k}]`, tr).value; return {quantidade: num(g('quantidade')), valor_unitario: num(g('valor_unitario')), ...(g('desconto') ? {desconto: num(g('desconto'))} : {}), origem: Number(g('origem')), perfil_icms: g('perfil_icms'), ...(g('perfil_piscofins') ? {perfil_piscofins: g('perfil_piscofins')} : {}), ...(g('cclasstrib') ? {cclasstrib: g('cclasstrib')} : {})}; });
+    const itens = $$('#itens tr', v).map(tr => { const g = k => $(`[name=${k}]`, tr).value; return {quantidade: num(g('quantidade')), valor_unitario: num(g('valor_unitario')), ...(g('desconto') ? {desconto: num(g('desconto'))} : {}), origem: Number(g('origem')), perfil: g('perfil'), ...(g('cclasstrib') ? {cclasstrib: g('cclasstrib')} : {})}; });
     try {
       const r = await api('/tributos/calcular?detalhar=1', 'POST', {modelo: Number(d.modelo), operacao: {codigo: d.operacao, tipo_pessoa: d.tipo_pessoa, ...(d.uf_destino && d.modelo === '55' ? {uf_destino: d.uf_destino} : {}), consumidor_final: true, ...(d.pIBSUF !== '' || d.pIBSMun !== '' || d.pCBS !== '' ? {aliquotas_ibscbs: {pIBSUF: num(d.pIBSUF || '0'), pIBSMun: num(d.pIBSMun || '0'), pCBS: num(d.pCBS || '0')}} : {})}, itens: itens.map(i => i.perfil_piscofins ? i : {...i, regra: {pis: {CST: '07'}, cofins: {CST: '07'}}})});
       mostrar(r);

@@ -84,6 +84,12 @@ final class RegrasIss
     }
 
     /** @param array<mixed> $in @return array<string,mixed> */
+    /** Inclusão com código automático (maior código numérico + 1). @param array<mixed> $in @return array<string,mixed> */
+    public static function criar(array $in): array
+    {
+        return self::salvar(Matriz::proximoCodigo(array_column(self::listar(), 'codigo')), $in);
+    }
+
     public static function salvar(string $codigo, array $in): array
     {
         $r = self::validar($codigo, $in);
@@ -99,9 +105,10 @@ final class RegrasIss
     public static function copiar(array $in): array
     {
         $o = is_int($in['origem'] ?? null) ? (string) $in['origem'] : ($in['origem'] ?? null);
-        $d = is_int($in['destino'] ?? null) ? (string) $in['destino'] : ($in['destino'] ?? null);
         $r = is_string($o) ? self::obter($o) : null;
         $r ?? throw Tenant::notFound('Regra de ISS de origem');
+        // sem destino: próximo código automático
+        $d = is_int($in['destino'] ?? null) ? (string) $in['destino'] : ($in['destino'] ?? Matriz::proximoCodigo(array_column(self::listar(), 'codigo')));
         if (!is_string($d) || !preg_match(self::CODIGO, $d)) {
             throw ApiException::validation([['campo' => 'destino', 'mensagem' => 'Código com 1 a 30 caracteres [A-Za-z0-9_-]']]);
         }

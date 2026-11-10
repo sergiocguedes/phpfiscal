@@ -56,6 +56,7 @@ final class TributacaoMatrizTest extends TestCase
         $this->assertSame(['VENDA'], array_column($c['operacoes'], 'codigo'));
         $this->assertContains('pRedBC', $c['campos_por_cst']['20']);
         $this->assertSame([], $c['campos_por_cst']['60']);
+        $this->assertSame((int) (\App\Nfe\ConfigService::get()['crt'] ?? 0) ?: null, $c['crt'], 'regime da empresa para o combo CST/CSOSN');
 
         // campo que não se aplica ao CST, obrigatório ausente, perfil de outro tipo, operação inexistente
         $d = $this->req('PUT', '/tributacao/regras-icms/1/VENDA/AM/J', ['descricao' => 'X', 'cfop' => '5102',
@@ -64,10 +65,31 @@ final class TributacaoMatrizTest extends TestCase
         $d = $this->req('PUT', '/tributacao/regras-icms/1/VENDA/AM/J', ['descricao' => 'X', 'cfop' => '5102',
             'icms' => ['CST' => '20', 'pICMS' => 18]], 422);
         $this->assertContains('icms.pRedBC', $this->campos($d));
-        $d = $this->req('PUT', '/tributacao/regras-icms/PC1/OUTRA/AM/J', ['descricao' => 'X', 'cfop' => '5102',
+        // o mesmo perfil vale para ICMS e PIS/COFINS: só perfil e operação inexistentes são recusados
+        $d = $this->req('PUT', '/tributacao/regras-icms/NADA/OUTRA/AM/J', ['descricao' => 'X', 'cfop' => '5102',
             'icms' => ['CST' => '00', 'pICMS' => 18]], 422);
         $this->assertContains('perfil', $this->campos($d));
         $this->assertContains('operacao', $this->campos($d));
+        $this->req('PUT', '/tributacao/regras-piscofins/1/VENDA', ['descricao' => 'Perfil único',
+            'pis' => ['CST' => '01', 'pPIS' => 0.65], 'cofins' => ['CST' => '01', 'pCOFINS' => 3]]);
+        $this->assertArrayNotHasKey('tipo', $this->req('GET', '/tributacao')['perfis'][0]);
+
+        // inclusão com código automático (maior código numérico + 1)
+        $this->assertSame('3', $this->req('POST', '/tributacao/perfis', ['nome' => 'NOVO'], 201)['codigo']);
+        $this->assertSame('1', $this->req('POST', '/tributacao/operacoes', ['nome' => 'DEVOLUÇÃO'], 201)['codigo']);
+        $this->assertSame('2', $this->req('POST', '/tributacao/operacoes', ['nome' => 'REMESSA'], 201)['codigo']);
+
+        // copiar regra de PIS/COFINS para outro perfil e operação
+        $res = $this->req('POST', '/tributacao/regras-piscofins/copiar', ['origem' => ['perfil' => '1', 'operacao' => 'VENDA'],
+            'destino' => ['perfis' => ['1', '2'], 'operacoes' => ['VENDA', '1']]]);
+        $this->assertSame(3, $res['criadas']);
+        $this->assertSame('Perfil único', $this->req('GET', '/tributacao/regras-piscofins/2/1')['descricao']);
+        $res = $this->req('POST', '/tributacao/regras-piscofins/copiar', ['origem' => ['perfil' => '1', 'operacao' => 'VENDA'], 'destino' => ['perfis' => ['2']]]);
+        $this->assertSame(['2/VENDA'], $res['ignoradas']);
+        $this->req('POST', '/tributacao/regras-piscofins/copiar', ['origem' => ['perfil' => '9', 'operacao' => 'VENDA']], 404);
+        foreach (['2/VENDA', '2/1', '1/1', '1/VENDA'] as $k) {
+            $this->req('DELETE', "/tributacao/regras-piscofins/$k", null, 204);
+        }
         $d = $this->req('PUT', '/tributacao/regras-piscofins/PC1/VENDA', ['descricao' => 'X',
             'pis' => ['CST' => '01'], 'cofins' => ['CST' => '07', 'pCOFINS' => 3]], 422);
         $this->assertContains('pis.pPIS', $this->campos($d));
@@ -171,6 +193,16 @@ final class TributacaoMatrizTest extends TestCase
         $this->assertSame('5102', $r['itens'][1]['cfop']);
         $this->assertSame('VENDA', $r['operacao']['codigo']);
 
+        // um único "perfil" no item vale para ICMS e PIS/COFINS
+        $this->req('PUT', '/tributacao/regras-piscofins/1/VENDA', ['descricao' => 'Perfil único',
+            'pis' => ['CST' => '01', 'pPIS' => 0.65], 'cofins' => ['CST' => '01', 'pCOFINS' => 3]]);
+        $r = $this->req('POST', '/tributos/calcular', ['operacao' => ['codigo' => 'VENDA', 'tipo_pessoa' => 'F'],
+            'itens' => [['quantidade' => 1, 'valor_unitario' => 100, 'origem' => 0, 'perfil' => '1']]]);
+        $this->assertSame('5102', $r['itens'][0]['cfop']);
+        $this->assertSame(0.65, $r['itens'][0]['impostos']['pis']['vPIS']);
+        $this->assertSame('1', $r['itens'][0]['regra_aplicada']['piscofins']['perfil']);
+        $this->req('DELETE', '/tributacao/regras-piscofins/1/VENDA', null, 204);
+
         // sobreposição de um parâmetro e troca de CST
         $r = $this->req('POST', '/tributos/calcular', ['operacao' => ['codigo' => 'VENDA'], 'itens' => [
             $item('1', ['regra' => ['icms' => ['pICMS' => 18]]]),
@@ -245,6 +277,13 @@ final class TributacaoMatrizTest extends TestCase
             $this->assertContains($k, $this->campos($erro));
         }
         $this->req('PUT', '/tributacao/regras-iss/IMUNE', ['descricao' => 'Templo', 'servico' => ['codigo_tributacao_nacional' => '080201']]);
+
+        // inclusão e cópia com código automático
+        $auto = $this->req('POST', '/tributacao/regras-iss', ['descricao' => 'Automática', 'servico' => ['codigo_tributacao_nacional' => '080201']], 201);
+        $this->assertSame('1', $auto['codigo']);
+        $this->assertSame('2', $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => '1'], 201)['codigo']);
+        $this->req('DELETE', '/tributacao/regras-iss/2', null, 204);
+        $this->req('DELETE', '/tributacao/regras-iss/1', null, 204);
 
         // copiar regra
         $c = $this->req('POST', '/tributacao/regras-iss/copiar', ['origem' => 'CURSO', 'destino' => 'CURSO2'], 201);

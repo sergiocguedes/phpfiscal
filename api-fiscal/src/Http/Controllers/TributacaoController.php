@@ -27,15 +27,58 @@ final class TributacaoController
             'ufs' => Matriz::UFS,
             'tipos_pessoa' => Matriz::TIPOS_PESSOA,
             // regime da empresa: o portal mostra CST (CRT 2 e 3) ou CSOSN (CRT 1 Simples e 4 MEI) na regra de ICMS
-            'crt' => isset(($cfg = \App\Nfe\ConfigService::get() ?? [])['crt']) ? (int) $cfg['crt'] : null,
+            'crt' => self::crt(),
             'cst_ibscbs_suportados' => array_map(fn($c) => ['cst' => $c, 'descricao' => RegraDetalhe::CST_IBSCBS[$c]], \App\Tributos\IbsCbs::CST_SUPORTADOS),
         ]);
+    }
+
+    /**
+     * Regime da empresa (CRT): o dos dados fiscais (NF-e/NFC-e); sem eles, deduzido da opção pelo Simples do prestador
+     * NFS-e (1 não optante → 3, 2 MEI → 4, 3 ME/EPP → 1). null = empresa sem regime cadastrado.
+     */
+    private static function crt(): ?int
+    {
+        $cfg = \App\Nfe\ConfigService::get() ?? [];
+        if (in_array((int) ($cfg['crt'] ?? 0), [1, 2, 3, 4], true)) {
+            return (int) $cfg['crt'];
+        }
+        $op = (int) ((\App\Nfse\NfseConfig::get() ?? [])['opcao_simples_nacional'] ?? 0);
+        return [1 => 3, 2 => 4, 3 => 1][$op] ?? null;
     }
 
     public static function salvarPerfil(Request $req): Response
     {
         $r = Matriz::salvarPerfil($req->params['codigo'], $req->json());
-        Logger::audit('tributacao.perfil', 'salvo', ['codigo' => $r['codigo'], 'tipo' => $r['tipo']]);
+        Logger::audit('tributacao.perfil', 'salvo', ['codigo' => $r['codigo']]);
+        return Response::json($r);
+    }
+
+    /** Inclusão com código automático: POST /tributacao/perfis e /tributacao/operacoes. */
+    public static function criarPerfil(Request $req): Response
+    {
+        $r = Matriz::criar('perfis', $req->json());
+        Logger::audit('tributacao.perfil', 'criado', ['codigo' => $r['codigo']]);
+        return Response::json($r, 201);
+    }
+
+    public static function criarOperacao(Request $req): Response
+    {
+        $r = Matriz::criar('operacoes', $req->json());
+        Logger::audit('tributacao.operacao', 'criada', ['codigo' => $r['codigo']]);
+        return Response::json($r, 201);
+    }
+
+    public static function criarIss(Request $req): Response
+    {
+        $r = RegrasIss::criar($req->json());
+        Logger::audit('tributacao.regra_iss', 'criada', ['codigo' => $r['codigo']]);
+        return Response::json(RegraDetalhe::resumoIss($r), 201);
+    }
+
+    public static function copiarPisCofins(Request $req): Response
+    {
+        $r = Matriz::copiarPisCofins($req->json());
+        Logger::audit('tributacao.regra_piscofins', 'copiada', ['criadas' => $r['criadas'], 'sobrescritas' => $r['sobrescritas']]);
         return Response::json($r);
     }
 

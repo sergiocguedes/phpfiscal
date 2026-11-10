@@ -115,7 +115,7 @@ Mesmo desenho da "Listagem de Tributação do ICMS" do ClickPDV. Cadastro no Por
 
 | Cadastro | Chave | Conteúdo |
 |---|---|---|
-| Perfil (`tipo` icms ou piscofins) | código (ex.: `1` Produto tributado, `2` Produto substituição) | nome |
+| Perfil (vale para ICMS e PIS/COFINS) | código automático (ex.: `1` Produto tributado, `2` Produto substituição) | nome |
 | Operação | código (ex.: `VENDA`) | nome — vira a natureza da operação da nota quando ela não é informada |
 | Regra de ICMS | perfil × operação × UF de destino × tipo de pessoa (F, J, E) | descrição (só identificação), CFOP, CST/CSOSN e parâmetros do CST, IPI (CST, enquadramento, alíquota) |
 | Regra de PIS/COFINS | perfil × operação | descrição, CST e alíquota (ou valor por unidade no CST 03) de PIS e de COFINS |
@@ -125,8 +125,12 @@ A regra guarda só parâmetros. Os campos aceitos dependem do CST (`GET /tributa
 | Rota | Uso |
 |---|---|
 | `GET /tributacao` | perfis, operações, campos por CST, UFs |
-| `PUT`/`DELETE /tributacao/perfis/{codigo}` | `{nome, tipo}`; perfil com regras não é excluído (409) |
+| `POST /tributacao/perfis` | `{nome}`: inclui com código automático (maior código numérico + 1); 201 com o perfil |
+| `PUT`/`DELETE /tributacao/perfis/{codigo}` | `{nome}`; perfil com regras não é excluído (409). O mesmo perfil vale para ICMS e PIS/COFINS (`tipo` antigo é ignorado) |
+| `POST /tributacao/operacoes` | `{nome}`: inclui com código automático; 201 |
 | `PUT`/`DELETE /tributacao/operacoes/{codigo}` | `{nome}`; operação com regras não é excluída (409) |
+| `POST /tributacao/regras-piscofins/copiar` | `{origem:{perfil, operacao}, destino:{perfis?, operacoes?}, sobrescrever?}` → `{criadas, sobrescritas, ignoradas}` |
+| `POST /tributacao/regras-iss` | inclui regra de ISS com código automático; 201 |
 | `GET /tributacao/regras-icms?perfil=&operacao=&uf=&tipo_pessoa=` | lista filtrada para a grade do ERP: `total` e cada regra com `perfil_nome`, `operacao_nome`, `tipo_pessoa_descricao`, `cst`, `cst_descricao` |
 | `GET /tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}` | detalhe: a regra, os nomes e `campos` (`grupo`, `campo`, `rotulo`, `valor`, `valor_descricao`) para mostrar ao usuário; 404 se não existir |
 | `PUT`/`DELETE /tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}` | `{descricao, cfop, icms:{CST, ...}, ipi?}` |
@@ -177,7 +181,7 @@ Regras:
 {
   "operacao": { "codigo": "VENDA", "municipio_destino": "1302603" },
   "itens": [ { "quantidade": 2, "valor_unitario": 5.49, "desconto": 0.50, "origem": 0,
-               "perfil_icms": "2", "perfil_piscofins": "PC1", "cclasstrib": "000001" } ]
+               "perfil": "2", "cclasstrib": "000001" } ]
 }
 ```
 
@@ -220,7 +224,7 @@ Equivalem ao IMPOSTO_ISS do ClickPDV: cada regra tem um código escolhido pela e
 | Rota | Uso |
 |---|---|
 | `GET /tributacao/regras-iss?busca=` | lista (busca por código, descrição ou código de tributação nacional): `total` e cada regra com `servico_descricao`, `item_lc116`, `tipo_pessoa_descricao`, `retencao_federais_descricao` |
-| `POST /tributacao/regras-iss/copiar` | `{origem, destino, descricao?, sobrescrever?}`: cria uma regra nova com os dados da origem (descrição padrão "Cópia de …"); 409 se o destino existir sem `sobrescrever: true`; 201 com a regra criada |
+| `POST /tributacao/regras-iss/copiar` | `{origem, destino?, descricao?, sobrescrever?}` (sem destino: código automático): cria uma regra nova com os dados da origem (descrição padrão "Cópia de …"); 409 se o destino existir sem `sobrescrever: true`; 201 com a regra criada |
 | `GET /tributacao/regras-iss/{codigo}` | detalhe com `campos` rotulados (descrição do serviço nacional e da NBS) |
 | `PUT`/`DELETE /tributacao/regras-iss/{codigo}` | `{descricao, tipo_pessoa?, servico:{codigo_tributacao_nacional, nbs?, codigo_tributacao_municipal?, codigo_interno?}, iss?:{aliquota_iss?}, federais?:{cst_pis_cofins, aliquota_pis?, aliquota_cofins?, aliquota_irrf?, aliquota_csll?, tipo_retencao}, ibs_cbs?:{indicador_operacao?, classificacao_tributaria?, percentual_diferimento?, operacao_onerosa, servico_exterior}}` |
 
@@ -252,12 +256,12 @@ Se a nota trouxer `tributos_federais`, vale o informado. O Delphi somava PIS e C
 
 ### Usando os perfis no cálculo
 
-O item informa `perfil_icms`, `perfil_piscofins` e `origem` (do produto); a operação informa `codigo` e `tipo_pessoa`. A API busca a regra de ICMS pela UF de destino (na NFC-e, a UF do emitente) e devolve em cada item `regra_aplicada` (qual regra foi usada e o que foi sobreposto).
+O item informa `perfil` (um só, vale para ICMS e PIS/COFINS) e `origem` (do produto); `perfil_icms`/`perfil_piscofins` ainda são aceitos para trocar o perfil de um dos dois; a operação informa `codigo` e `tipo_pessoa`. A API busca a regra de ICMS pela UF de destino (na NFC-e, a UF do emitente) e devolve em cada item `regra_aplicada` (qual regra foi usada e o que foi sobreposto).
 
 ```json
 {
   "operacao": { "codigo": "VENDA", "tipo_pessoa": "F" },
-  "itens": [ { "quantidade": 2, "valor_unitario": 5.49, "origem": 0, "perfil_icms": "2", "perfil_piscofins": "PC1" } ]
+  "itens": [ { "quantidade": 2, "valor_unitario": 5.49, "origem": 0, "perfil": "2" } ]
 }
 ```
 
@@ -268,7 +272,7 @@ O item informa `perfil_icms`, `perfil_piscofins` e `origem` (do produto); a oper
 
 ## Cálculo na emissão (`POST /nfe` e `/pdv/nfce`)
 
-Envie os perfis (`perfil_icms`, `perfil_piscofins`, `origem`) ou a `regra` no item, no lugar de `impostos`. A API calcula com este mesmo motor, preenche `impostos` e `valor_aproximado_tributos` de cada item e segue a emissão normal (validação, numeração, assinatura, transmissão).
+Envie o perfil (`perfil`, `origem`) ou a `regra` no item, no lugar de `impostos`. A API calcula com este mesmo motor, preenche `impostos` e `valor_aproximado_tributos` de cada item e segue a emissão normal (validação, numeração, assinatura, transmissão).
 
 ```json
 {

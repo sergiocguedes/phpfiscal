@@ -104,6 +104,7 @@ Online, com tudo em `contador.meuclickonline.com.br`, basta `APP_URL=https://con
 - **Perfis de tributação**, **Operações**: listagem e manutenção.
 - **Regras de ICMS**: listagem com filtros, manutenção com campos por CST/CSOSN, cópia para várias UFs, tipos de pessoa, perfis e operações.
 - **Regras de PIS/COFINS**: listagem e manutenção.
+- **Perfis, operações e regras de ISS** com código automático na inclusão; **cópia** nas regras de ICMS, PIS/COFINS e ISS.
 - **Regras de ISS (NFS-e)**: listagem, manutenção e cópia de regra, com busca na lista nacional de serviços, tipo de pessoa, PIS/COFINS do serviço, IRRF, CSLL, tipo de retenção e os dados de IBS/CBS (indicador da operação, cClassTrib, diferimento, operação onerosa, serviço no exterior).
 - **Simulador**: calcula uma venda com as regras gravadas (mesmo motor da emissão), inclusive IBS/CBS pelo cClassTrib; as alíquotas de IBS/CBS são opcionais (vazias = tabela de alíquotas da API).
 

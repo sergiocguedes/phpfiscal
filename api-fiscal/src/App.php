@@ -113,8 +113,10 @@ final class App {
         $r->add('POST', "$p/portal/sair", [$pc, 'sair'], $portal);
         $t = \App\Http\Controllers\TributacaoController::class;
         $r->add('GET', "$p/tributacao", [$t, 'cadastro'], $portal);
+        $r->add('POST', "$p/tributacao/perfis", [$t, 'criarPerfil'], $owner + $portal);
         $r->add('PUT', "$p/tributacao/perfis/{codigo}", [$t, 'salvarPerfil'], $owner + $portal);
         $r->add('DELETE', "$p/tributacao/perfis/{codigo}", [$t, 'excluirPerfil'], $owner + $portal);
+        $r->add('POST', "$p/tributacao/operacoes", [$t, 'criarOperacao'], $owner + $portal);
         $r->add('PUT', "$p/tributacao/operacoes/{codigo}", [$t, 'salvarOperacao'], $owner + $portal);
         $r->add('DELETE', "$p/tributacao/operacoes/{codigo}", [$t, 'excluirOperacao'], $owner + $portal);
         $r->add('GET', "$p/tributacao/regras-icms", [$t, 'listarIcms'], $portal);
@@ -123,11 +125,13 @@ final class App {
         $r->add('PUT', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'salvarIcms'], $owner + $portal);
         $r->add('DELETE', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'excluirIcms'], $owner + $portal);
         $r->add('GET', "$p/tributacao/regras-piscofins", [$t, 'listarPisCofins'], $portal);
+        $r->add('POST', "$p/tributacao/regras-piscofins/copiar", [$t, 'copiarPisCofins'], $owner + $portal);
         $r->add('GET', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'detalhePisCofins'], $portal);
         $r->add('PUT', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'salvarPisCofins'], $owner + $portal);
         $r->add('DELETE', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'excluirPisCofins'], $owner + $portal);
         $r->add('GET', "$p/tributacao/cclasstrib", [$t, 'cclasstrib'], $portal);
         $r->add('GET', "$p/tributacao/regras-iss", [$t, 'listarIss'], $portal);
+        $r->add('POST', "$p/tributacao/regras-iss", [$t, 'criarIss'], $owner + $portal);
         $r->add('POST', "$p/tributacao/regras-iss/copiar", [$t, 'copiarIss'], $owner + $portal);
         $r->add('GET', "$p/tributacao/regras-iss/{codigo}", [$t, 'detalheIss'], $portal);
         $r->add('PUT', "$p/tributacao/regras-iss/{codigo}", [$t, 'salvarIss'], $owner + $portal);

@@ -38,7 +38,10 @@ final class NfseConfig
         if($c===null){$shared=JsonStore::read(Tenant::path('nfse-prestador.json'));if($shared!==null){$c=$shared+['serie'=>1,'proximo_numero'=>1,'municipio_convenio_ativo'=>null];}}
         if($c!==null){unset($c['servicos']);$c['ambiente']=\App\Tenancy\FiscalScope::ambiente(Tenant::id());
             // o regime da empresa manda: CRT alterado nos dados fiscais vale na hora para a NFS-e
-            $op=self::opcaoSimples((\App\Nfe\ConfigService::get()??[])['crt']??null);
+            $emit=\App\Nfe\ConfigService::get()??[];
+            // município e regime vêm sempre dos dados fiscais da empresa
+            if(preg_match('/^\d{7}$/',(string)($emit['endereco']['codigo_municipio']??''))){$c['codigo_municipio']=(string)$emit['endereco']['codigo_municipio'];}
+            $op=self::opcaoSimples($emit['crt']??null);
             if($op!==null){$c['opcao_simples_nacional']=$op;if($op!==3){unset($c['regime_apuracao_sn']);}}}
         return $c;
     }
@@ -104,9 +107,12 @@ final class NfseConfig
             }
         }
 
-        $cMun = Validate::digits($in['codigo_municipio'] ?? ($emit['endereco']['codigo_municipio'] ?? ''));
-        if (!preg_match('/^\d{7}$/', $cMun) || !in_array((int) substr($cMun, 0, 2), Validate::UFS, true)) {
-            $e->add('codigo_municipio', 'Código IBGE do município emissor com 7 dígitos');
+        // município emissor = o do endereço da empresa (dados fiscais, PUT /config): um só código IBGE para NF-e e NFS-e
+        $cMun = Validate::digits((string) ($emit['endereco']['codigo_municipio'] ?? ''));
+        if (isset($in['codigo_municipio']) && Validate::digits((string) $in['codigo_municipio']) !== $cMun) {
+            $e->add('codigo_municipio', 'O código IBGE do município vem do endereço nos dados fiscais da empresa (PUT /config): altere lá');
+        } elseif (!preg_match('/^\d{7}$/', $cMun) || !in_array((int) substr($cMun, 0, 2), Validate::UFS, true)) {
+            $e->add('codigo_municipio', 'Cadastre o código IBGE do município no endereço dos dados fiscais da empresa');
         } elseif (($dfErr = Validate::municipioIbgeErro($cMun)) !== null) {
             $e->add('codigo_municipio', $dfErr);
         }

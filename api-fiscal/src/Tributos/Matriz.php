@@ -69,7 +69,7 @@ final class Matriz
     public static function cadastro(): array
     {
         $c = JsonStore::read(Tenant::path('tributacao/cadastro.json')) ?? [];
-        $ord = fn(array $l) => array_values(self::ordenar($l));
+        $ord = fn(array $l) => array_values(array_map(fn($x) => array_diff_key($x, ['tipo' => 1]), self::ordenar($l)));
         return ['perfis' => $ord($c['perfis'] ?? []), 'operacoes' => $ord($c['operacoes'] ?? [])];
     }
 
@@ -79,19 +79,37 @@ final class Matriz
         self::codigo($codigo, 'codigo');
         $e = new Errors();
         $nome = self::nome($in['nome'] ?? null, $e);
-        $tipo = $in['tipo'] ?? null;
-        if (!in_array($tipo, self::TIPOS_PERFIL, true)) {
-            $e->add('tipo', 'icms ou piscofins');
+        // o perfil vale para ICMS e PIS/COFINS ao mesmo tempo; "tipo" antigo é aceito e ignorado
+        if (isset($in['tipo']) && !in_array($in['tipo'], self::TIPOS_PERFIL, true)) {
+            $e->add('tipo', 'Não é mais usado: o perfil vale para ICMS e PIS/COFINS');
         }
         $e->throwIfAny();
-        return self::atualizarCadastro(function (array $c) use ($codigo, $nome, $tipo) {
-            $atual = $c['perfis'][$codigo] ?? null;
-            if ($atual !== null && $atual['tipo'] !== $tipo && self::temRegras((string) $atual['tipo'], $codigo, null)) {
-                throw new ApiException(409, 'perfil_em_uso', 'O perfil tem regras cadastradas: não é possível trocar o tipo');
-            }
-            $c['perfis'][$codigo] = ['codigo' => $codigo, 'nome' => $nome, 'tipo' => $tipo, 'atualizado_em' => date('c')];
+        return self::atualizarCadastro(function (array $c) use ($codigo, $nome) {
+            $c['perfis'][$codigo] = ['codigo' => $codigo, 'nome' => $nome, 'atualizado_em' => date('c')];
             return [$c, $c['perfis'][$codigo]];
         });
+    }
+
+    /**
+     * Inclusão com código automático (sequencial numérico: maior código numérico + 1).
+     * @param 'perfis'|'operacoes' $tipo @param array<mixed> $in @return array<string,mixed>
+     */
+    public static function criar(string $tipo, array $in): array
+    {
+        $codigo = self::proximoCodigo(array_column(self::cadastro()[$tipo], 'codigo'));
+        return $tipo === 'perfis' ? self::salvarPerfil($codigo, $in) : self::salvarOperacao($codigo, $in);
+    }
+
+    /** @param list<int|string> $codigos */
+    public static function proximoCodigo(array $codigos): string
+    {
+        $max = 0;
+        foreach ($codigos as $c) {
+            if (preg_match('/^\d{1,9}$/D', (string) $c)) {
+                $max = max($max, (int) $c);
+            }
+        }
+        return (string) ($max + 1);
     }
 
     /** @param array<mixed> $in @return array<string,mixed> */
@@ -110,8 +128,8 @@ final class Matriz
     public static function excluirPerfil(string $codigo): void
     {
         self::atualizarCadastro(function (array $c) use ($codigo) {
-            $p = $c['perfis'][$codigo] ?? throw Tenant::notFound('Perfil');
-            if (self::temRegras((string) $p['tipo'], $codigo, null)) {
+            isset($c['perfis'][$codigo]) ?: throw Tenant::notFound('Perfil');
+            if (self::temRegras('icms', $codigo, null) || self::temRegras('piscofins', $codigo, null)) {
                 throw new ApiException(409, 'perfil_em_uso', 'Exclua antes as regras deste perfil');
             }
             unset($c['perfis'][$codigo]);
@@ -217,7 +235,7 @@ final class Matriz
             }
             return array_values(array_unique($v));
         };
-        $perfis = $lista('perfis', array_column(array_filter($cad['perfis'], fn($p) => $p['tipo'] === 'icms'), 'codigo'), [$o['perfil']]);
+        $perfis = $lista('perfis', array_column($cad['perfis'], 'codigo'), [$o['perfil']]);
         $ops = $lista('operacoes', array_column($cad['operacoes'], 'codigo'), [$o['operacao']]);
         $ufs = $lista('ufs', self::UFS, [strtoupper($o['uf'])]);
         $tipos = isset($d['tipos_pessoa']) ? $lista('tipos_pessoa', self::TIPOS_PESSOA, []) : null;
@@ -297,6 +315,58 @@ final class Matriz
         JsonStore::delete(Tenant::path("tributacao/piscofins/$perfil/$operacao.json"));
     }
 
+    /**
+     * Copia uma regra de PIS/COFINS para outros perfis e/ou operações.
+     * @param array<mixed> $in {origem:{perfil,operacao}, destino:{perfis?,operacoes?}, sobrescrever?}
+     * @return array{criadas:int, sobrescritas:int, ignoradas:list<string>}
+     */
+    public static function copiarPisCofins(array $in): array
+    {
+        $e = new Errors();
+        $str = fn($v) => is_int($v) ? (string) $v : $v;
+        $o = array_map($str, is_array($in['origem'] ?? null) ? $in['origem'] : []);
+        $d = array_map(fn($l) => is_array($l) ? array_map($str, $l) : $l, is_array($in['destino'] ?? null) ? $in['destino'] : []);
+        foreach (['perfil', 'operacao'] as $k) {
+            is_string($o[$k] ?? null) ?: $e->add("origem.$k", 'Obrigatório');
+        }
+        $e->throwIfAny();
+        $src = self::regraPisCofins($o['perfil'], $o['operacao']) ?? throw Tenant::notFound('Regra de origem');
+        $cad = self::cadastro();
+        $lista = function (string $k, array $todos, array $padrao) use ($d, $e): array {
+            $v = $d[$k] ?? $padrao;
+            if ($v === ['*']) {
+                return $todos;
+            }
+            if (!is_array($v) || !array_is_list($v) || $v === [] || array_diff($v, $todos) !== []) {
+                $e->add("destino.$k", 'Lista com valores cadastrados (ou ["*"] para todos)');
+                return [];
+            }
+            return array_values(array_unique($v));
+        };
+        $perfis = $lista('perfis', array_column($cad['perfis'], 'codigo'), [$o['perfil']]);
+        $ops = $lista('operacoes', array_column($cad['operacoes'], 'codigo'), [$o['operacao']]);
+        $e->throwIfAny();
+        if (count($perfis) * count($ops) > self::MAX_COPIAS) {
+            throw ApiException::validation([['campo' => 'destino', 'mensagem' => 'Cópia excede o limite de ' . self::MAX_COPIAS . ' regras']]);
+        }
+        $res = ['criadas' => 0, 'sobrescritas' => 0, 'ignoradas' => []];
+        foreach ($perfis as $p) {
+            foreach ($ops as $op) {
+                if ($p === $src['perfil'] && $op === $src['operacao']) {
+                    continue;
+                }
+                $existe = self::regraPisCofins($p, $op) !== null;
+                if ($existe && ($in['sobrescrever'] ?? false) !== true) {
+                    $res['ignoradas'][] = "$p/$op";
+                    continue;
+                }
+                self::salvarPisCofins($p, $op, array_intersect_key($src, array_flip(['descricao', 'pis', 'cofins'])));
+                $res[$existe ? 'sobrescritas' : 'criadas']++;
+            }
+        }
+        return $res;
+    }
+
     // ------------------------------------------------------------------ importação em lote
 
     /**
@@ -331,9 +401,7 @@ final class Matriz
             $cod = is_array($p) ? (string) ($p['codigo'] ?? '') : '';
             preg_match(self::CODIGO, $cod) ?: $e->add("perfis[$i].codigo", 'Código com 1 a 30 caracteres [A-Za-z0-9_-]');
             $nome = self::nome(is_array($p) ? ($p['nome'] ?? null) : null, $e, "perfis[$i].nome");
-            $tipo = is_array($p) ? ($p['tipo'] ?? null) : null;
-            in_array($tipo, self::TIPOS_PERFIL, true) ?: $e->add("perfis[$i].tipo", 'icms ou piscofins');
-            $novoCad['perfis'][$cod] = ['codigo' => $cod, 'nome' => $nome, 'tipo' => $tipo, 'atualizado_em' => date('c')];
+            $novoCad['perfis'][$cod] = ['codigo' => $cod, 'nome' => $nome, 'atualizado_em' => date('c')];
         }
         foreach ($ops as $i => $o) {
             $cod = is_array($o) ? (string) ($o['codigo'] ?? '') : '';
@@ -527,8 +595,6 @@ final class Matriz
         $p = array_values(array_filter($cad['perfis'], fn($x) => $x['codigo'] === $perfil))[0] ?? null;
         if ($p === null) {
             $e->add('perfil', 'Perfil não cadastrado');
-        } elseif ($p['tipo'] !== $tipo) {
-            $e->add('perfil', 'Perfil de ' . (self::NOMES_TIPO[$p['tipo']] ?? $p['tipo']) . ': use um perfil de ' . self::NOMES_TIPO[$tipo]);
         }
         in_array($operacao, array_column($cad['operacoes'], 'codigo'), true) ?: $e->add('operacao', 'Operação não cadastrada');
     }

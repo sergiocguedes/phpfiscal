@@ -3909,22 +3909,17 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "nome",
-                  "tipo"
+                  "nome"
                 ],
                 "properties": {
                   "nome": {
                     "type": "string",
                     "maxLength": 60
-                  },
-                  "tipo": {
-                    "type": "string",
-                    "enum": [
-                      "icms",
-                      "piscofins"
-                    ]
                   }
                 }
+              },
+              "example": {
+                "nome": "PRODUTO TRIBUTADO"
               }
             }
           }
@@ -5263,6 +5258,204 @@
             "$ref": "#/components/responses/Unauthorized"
           }
         }
+      },
+      "post": {
+        "operationId": "criarRegraIss",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Inclui regra de ISS com código automático",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "descricao",
+                  "servico"
+                ],
+                "properties": {
+                  "descricao": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "servico": {
+                    "type": "object",
+                    "required": [
+                      "codigo_tributacao_nacional"
+                    ],
+                    "properties": {
+                      "codigo_tributacao_nacional": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "nbs": {
+                        "type": "string",
+                        "pattern": "^\\d{9}$"
+                      },
+                      "codigo_tributacao_municipal": {
+                        "type": "string",
+                        "pattern": "^\\d{3}$"
+                      },
+                      "codigo_interno": {
+                        "type": "string",
+                        "maxLength": 20
+                      }
+                    }
+                  },
+                  "iss": {
+                    "type": "object",
+                    "properties": {
+                      "aliquota_iss": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 5,
+                        "description": "Só com tributacao_iss 1; omitida na DPS quando o regime/convênio não permite"
+                      }
+                    },
+                    "description": "Só a alíquota; tributação, retenção e imunidade vêm do cadastro da empresa (PUT /nfse/config)"
+                  },
+                  "tipo_pessoa": {
+                    "type": "string",
+                    "enum": [
+                      "F",
+                      "J"
+                    ],
+                    "description": "Identificação da regra (tomador pessoa física ou jurídica)"
+                  },
+                  "federais": {
+                    "type": "object",
+                    "nullable": true,
+                    "required": [
+                      "cst_pis_cofins"
+                    ],
+                    "description": "PIS/COFINS, IRRF e CSLL do serviço; na emissão, sem tributos_federais no JSON, a API calcula o grupo tribFed",
+                    "properties": {
+                      "cst_pis_cofins": {
+                        "type": "string",
+                        "pattern": "^\\d{2}$"
+                      },
+                      "aliquota_pis": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "aliquota_cofins": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "aliquota_irrf": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "aliquota_csll": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "tipo_retencao": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9,
+                        "default": 0,
+                        "description": "tpRetPisCofins: 0 nada retido, 1 PIS/COFINS retidos, 2 PIS/COFINS não retidos, 3 PIS/COFINS/CSLL retidos, 4 PIS/COFINS retidos e CSLL não, 5 só PIS, 6 só COFINS, 7 COFINS/CSLL, 8 só CSLL, 9 PIS/CSLL"
+                      }
+                    }
+                  },
+                  "ibs_cbs": {
+                    "type": "object",
+                    "nullable": true,
+                    "description": "Dados de IBS/CBS do serviço (a NFS-e não calcula IBS/CBS; completam o ibs_cbs informado na nota)",
+                    "properties": {
+                      "indicador_operacao": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "classificacao_tributaria": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "percentual_diferimento": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "operacao_onerosa": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "servico_exterior": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "descricao": "Consultoria para PJ",
+                  "tipo_pessoa": "J",
+                  "servico": {
+                    "codigo_tributacao_nacional": "170101",
+                    "nbs": "113011000"
+                  },
+                  "iss": {
+                    "tributacao_iss": 1,
+                    "retencao_iss": 1,
+                    "aliquota_iss": 2
+                  },
+                  "federais": {
+                    "cst_pis_cofins": "01",
+                    "aliquota_pis": 0.65,
+                    "aliquota_cofins": 3,
+                    "aliquota_irrf": 1.5,
+                    "aliquota_csll": 1,
+                    "tipo_retencao": 3
+                  },
+                  "ibs_cbs": {
+                    "indicador_operacao": "100301",
+                    "classificacao_tributaria": "000001",
+                    "operacao_onerosa": true,
+                    "servico_exterior": false
+                  }
+                }
+              },
+              "example": {
+                "descricao": "Licenciamento com retenção",
+                "servico": {
+                  "codigo_tributacao_nacional": "010501"
+                },
+                "iss": {
+                  "aliquota_iss": 2
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Regra criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dados inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/tributacao/regras-iss/{codigo}": {
@@ -6205,8 +6398,7 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "origem",
-                  "destino"
+                  "origem"
                 ],
                 "properties": {
                   "origem": {
@@ -6214,7 +6406,8 @@
                   },
                   "destino": {
                     "type": "string",
-                    "pattern": "^[A-Za-z0-9_-]{1,30}$"
+                    "pattern": "^[A-Za-z0-9_-]{1,30}$",
+                    "description": "Opcional: sem ele, o próximo código automático"
                   },
                   "descricao": {
                     "type": "string",
@@ -6257,6 +6450,212 @@
           },
           "409": {
             "description": "Destino já existe (use sobrescrever)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Destino inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tributacao/perfis": {
+      "post": {
+        "operationId": "criarPerfilTributario",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Inclui perfil tributário com código automático (vale para ICMS e PIS/COFINS)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nome"
+                ],
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "maxLength": 60
+                  }
+                }
+              },
+              "example": {
+                "nome": "PRODUTO TRIBUTADO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Perfil criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Nome inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tributacao/operacoes": {
+      "post": {
+        "operationId": "criarOperacaoTributaria",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Inclui operação com código automático",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nome"
+                ],
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "maxLength": 60
+                  }
+                }
+              },
+              "example": {
+                "nome": "VENDA DE PRODUTOS"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Operação criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Nome inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tributacao/regras-piscofins/copiar": {
+      "post": {
+        "operationId": "copiarRegraPisCofins",
+        "tags": [
+          "Tributação"
+        ],
+        "summary": "Copia uma regra de PIS/COFINS para outros perfis e operações",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "origem"
+                ],
+                "properties": {
+                  "origem": {
+                    "type": "object",
+                    "properties": {
+                      "perfil": {
+                        "type": "string"
+                      },
+                      "operacao": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "destino": {
+                    "type": "object",
+                    "properties": {
+                      "perfis": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "operacoes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "sobrescrever": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              },
+              "example": {
+                "origem": {
+                  "perfil": "1",
+                  "operacao": "1"
+                },
+                "destino": {
+                  "perfis": [
+                    "2",
+                    "3"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{criadas, sobrescritas, ignoradas}",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Regra de origem não encontrada",
             "content": {
               "application/json": {
                 "schema": {
@@ -6931,7 +7330,7 @@
           "codigo_municipio": {
             "type": "string",
             "pattern": "^\\d{7}$",
-            "description": "Código IBGE do município emissor (padrão = município do emitente). No DF o único código é 5300108 (Brasília)"
+            "description": "Não informar: vem do endereço dos dados fiscais (PUT /config); valor diferente é recusado"
           },
           "opcao_simples_nacional": {
             "type": "integer",
@@ -7779,11 +8178,11 @@
             "description": "Só com regra: quantidade tributada por unidade (ICMS monofásico)"
           },
           "perfil_icms": {
-            "description": "Só com cálculo pela API (docs/TRIBUTOS-CALCULO.md)",
+            "description": "Legado: troca o perfil só de ICMS",
             "type": "string"
           },
           "perfil_piscofins": {
-            "description": "Só com cálculo pela API (docs/TRIBUTOS-CALCULO.md)",
+            "description": "Legado: troca o perfil só de PIS/COFINS",
             "type": "string"
           },
           "origem": {
@@ -7803,6 +8202,10 @@
           },
           "credito_presumido": {
             "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
+          },
+          "perfil": {
+            "type": "string",
+            "description": "Perfil tributário do produto: vale para as regras de ICMS e PIS/COFINS"
           }
         }
       },

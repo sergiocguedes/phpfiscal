@@ -184,7 +184,13 @@ final class NfseTest extends TestCase
         $this->regime(3);
         $r = $this->authed('PUT', '/api/v1/nfse/config', (string) json_encode(['opcao_simples_nacional' => 3]));
         $this->assertContains('regime_apuracao_sn', array_column($this->json($r)['erro']['detalhes'], 'campo'));
+        // o município emissor é o do endereço nos dados fiscais (um só código IBGE)
+        $r = $this->authed('PUT', '/api/v1/nfse/config', (string) json_encode(['codigo_municipio' => '1302603', 'regime_apuracao_sn' => 1,
+            'inscricao_municipal' => '12345678', 'serie' => 1, 'proximo_numero' => 1]));
+        $this->assertSame(422, $r->status);
+        $this->assertContains('codigo_municipio', array_column($this->json($r)['erro']['detalhes'], 'campo'));
         $c = $this->configNfse();
+        $this->assertSame('3550308', $c['codigo_municipio']);
         $this->assertTrue($c['configurado']);
         $this->assertSame(2, $c['ambiente'], 'padrão: produção restrita (homologação)');
         $this->assertStringContainsString('nfse.config', $this->auditTrail());

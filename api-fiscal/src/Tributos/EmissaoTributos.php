@@ -32,7 +32,7 @@ final class EmissaoTributos
 {
     private const OPCOES = ['calculo_id', 'operacao', 'tipo_pessoa', 'excluir_icms_base_piscofins', 'aliquotas_ibscbs', 'credito_presumido'];
     /** Campos do item só usados no cálculo (não vão para o montador da NF-e). */
-    private const CAMPOS_CALCULO = ['regra', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido', 'origem', 'qtd_tributavel_unidade', 'valor_pauta_st'];
+    private const CAMPOS_CALCULO = ['regra', 'perfil', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido', 'origem', 'qtd_tributavel_unidade', 'valor_pauta_st'];
     /** Grupos de impostos que podem vir junto com a regra (Reforma Tributária informada). */
     private const IMPOSTOS_COM_REGRA = ['ibscbs', 'is'];
 
@@ -92,7 +92,7 @@ final class EmissaoTributos
             if ($regra !== null) {
                 $e['regra'] = $regra;
             }
-            foreach (['desconto', 'frete', 'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido'] as $k) {
+            foreach (['desconto', 'frete', 'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido'] as $k) {
                 if (isset($it[$k]) || ($k === 'credito_presumido' && array_key_exists($k, $it))) {
                     $e[$k] = $it[$k];
                 }
@@ -229,7 +229,7 @@ final class EmissaoTributos
     /** @param mixed $i */
     private static function calculado($i): bool
     {
-        return is_array($i) && (array_key_exists('regra', $i) || array_key_exists('perfil_icms', $i) || array_key_exists('perfil_piscofins', $i));
+        return is_array($i) && (array_key_exists('regra', $i) || array_key_exists('perfil', $i) || array_key_exists('perfil_icms', $i) || array_key_exists('perfil_piscofins', $i));
     }
 
     private static function remapear(ApiException $ex, string $prefixo): ApiException

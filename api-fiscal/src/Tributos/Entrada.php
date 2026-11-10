@@ -259,7 +259,7 @@ final class Entrada
         }
         $antes = count($e->all());
         $permitidos = ['item', 'codigo', 'ncm', 'cest', 'servico', 'quantidade', 'valor_unitario', 'valor_total', 'desconto', 'frete',
-            'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil_icms', 'perfil_piscofins',
+            'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil', 'perfil_icms', 'perfil_piscofins',
             'cclasstrib', 'credito_presumido', 'regra'];
         foreach (array_keys($it) as $k) {
             if (!in_array($k, $permitidos, true)) {
@@ -346,8 +346,9 @@ final class Entrada
     private static function resolverRegra(array $it, string $f, bool $servico, array $ctx, Errors $e): array
     {
         $informada = $it['regra'] ?? null;
-        $pIcms = $it['perfil_icms'] ?? null;
-        $pPc = $it['perfil_piscofins'] ?? null;
+        // um perfil vale para ICMS e PIS/COFINS; perfil_icms/perfil_piscofins (legado) trocam um deles
+        $pIcms = $it['perfil_icms'] ?? $it['perfil'] ?? null;
+        $pPc = $it['perfil_piscofins'] ?? $it['perfil'] ?? null;
         $origem = $it['origem'] ?? null;
         if ($pIcms === null && $pPc === null) {
             if ($origem !== null && is_array($informada) && !array_is_list($informada) && !isset($informada['icms']['orig'])) {
