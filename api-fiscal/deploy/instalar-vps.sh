@@ -103,6 +103,8 @@ for f in "$APP_DIR"/.env "$APP_DIR"/.env.*; do
   if [ -f "$f" ]; then chmod 600 "$f"; aviso "$(basename "$f") encontrado no projeto e ignorado; a VPS usa $CONF. Apague-o depois de conferir."; fi
 done
 if [ -d "$APP_DIR/secrets" ]; then chmod 755 "$APP_DIR/secrets"; fi
+# Ponto de montagem do volume de storage: o código é montado somente leitura, então a pasta precisa existir antes
+install -d -m 755 "$APP_DIR/storage"
 docker run --rm -v "$APP_DIR:/app" -w /app composer:2 install --no-dev --prefer-dist --no-interaction --no-progress --ignore-platform-reqs --no-scripts
 chmod -R go+rX,go-w "$APP_DIR/vendor"
 
