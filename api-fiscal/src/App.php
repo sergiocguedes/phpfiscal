@@ -33,7 +33,7 @@ use App\Tenancy\Tenant;
 use App\Tenancy\TenantStore;
 
 final class App {
-    public const VERSION = '3.1.0-api';
+    public const VERSION = '3.2.0-api';
     private const SPA_CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     private Router $router;
     public function __construct() {
@@ -66,6 +66,10 @@ final class App {
         $r->add('GET', "$p/admin/armazenamento", [$a,'storage'], $admin);
         $r->add('GET', "$p/admin/config", [$a,'apiConfig'], $admin);
         $r->add('PUT', "$p/admin/config", [$a,'saveApiConfig'], $admin);
+        $cfg=\App\Http\Controllers\ConfiguracaoController::class;
+        $r->add('GET', "$p/admin/configuracao", [$cfg,'obter'], $admin+$session);
+        $r->add('PUT', "$p/admin/configuracao/{grupo}", [$cfg,'salvar'], $admin+$session);
+        $r->add('POST', "$p/admin/configuracao/armazenamento/testar", [$cfg,'testarArmazenamento'], $admin+$session);
         $r->add('POST', "$p/admin/chaves", [$a,'createKey'], $admin);
         $r->add('DELETE', "$p/admin/chaves/{id}", [$a,'revokeKey'], $admin);
         $r->add('POST', "$p/auth/login", [AuthController::class, 'login'], ['public' => true, 'auth_form' => true]);

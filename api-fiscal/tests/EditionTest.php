@@ -41,7 +41,7 @@ final class EditionTest extends TestCase
     public function testOpenApiDocumentaApenasRotasPresentesETodasReferenciasExistem(): void
     {
         $doc=json_decode(file_get_contents(APP_ROOT.'/openapi.yaml'),true,512,JSON_THROW_ON_ERROR);
-        self::assertSame('3.1.0-api',$doc['info']['version']);
+        self::assertSame('3.2.0-api',$doc['info']['version']);
         self::assertArrayHasKey('/api/v1/pdv/nfce',$doc['paths']);
         self::assertArrayHasKey('/api/v1/nfse',$doc['paths']);
         self::assertArrayNotHasKey('/api/v1/produtos',$doc['paths']);

@@ -12,7 +12,7 @@ final class AdminController
 {
     public static function apiConfig(): Response {return Response::json(\App\Fiscal\ApiConfigService::get());}
     public static function saveApiConfig(Request $r): Response {$c=\App\Fiscal\ApiConfigService::put($r->json());Logger::audit('api.config.atualizada','sucesso');return Response::json($c);}
-    public static function storage(): Response {return Response::json(['banco'=>\App\Storage\PostgresStore::enabled()?'PostgreSQL':'Arquivos locais']+\App\Storage\XmlArchive::status());}
+    public static function storage(): Response {return Response::json(['banco'=>\App\Support\Settings::backend()]+\App\Storage\XmlArchive::status());}
     public static function empresas(): Response
     {
         $companies=[];

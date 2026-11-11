@@ -1,10 +1,10 @@
 # Configurar o PDV Delphi para a API local ou online
 
-O contrato JSON é o mesmo nos dois perfis. O PDV não conecta ao PostgreSQL, Supabase nem Backblaze. Ele usa a API PHP com uma URL base e uma chave restrita à empresa.
+O contrato JSON é o mesmo nos dois perfis. O PDV não conecta ao PostgreSQL. Ele usa a API PHP com uma URL base e uma chave restrita à empresa.
 
 | Configuração | Local | Online |
 |---|---|---|
-| `UrlBase` | `http://localhost:8081/api/v1` | `https://SEU-DOMINIO:8080/api/v1` |
+| `UrlBase` | `http://localhost:8081/api/v1` | `https://SEU-DOMINIO/api/v1` |
 | `Chave` | Chave `nfk_...` criada na instalação local | Chave `nfk_...` criada na instalação online |
 
 O nome do perfil de hospedagem não escolhe homologação ou produção: essa escolha é feita no cadastro da empresa. Sistemas distintos devem ter chaves distintas, mesmo usando a mesma empresa. Uma chave `adm_...` é destinada a integrações administrativas, não ao caixa comum.
@@ -50,7 +50,7 @@ Referência do cliente HTTP: [THTTPClient.Post na documentação da Embarcadero]
 - Em timeout ou situação incerta, consulte `GET /pdv/nfce/{operacao_id}` e, se necessário, `POST /pdv/nfce/{operacao_id}/sincronizar` com `{}`. Não crie outra operação para a mesma venda.
 - Repetir `POST /pdv/nfce` usa o mesmo `operacao_id` e o mesmo conteúdo original. Conteúdo alterado gera conflito.
 - Para emitir NFS-e em `POST /nfse`, use `Idempotency-Key` estável por documento. O cliente de referência aceita esse valor no quarto argumento. Preserve a referência retornada para `/nfse/{ref}/sincronizar`; o XML autorizado é baixado em `/nfse/{ref}/xml`.
-- Os caminhos em `links` começam em `/api/v1`. Resolva-os contra a origem (`http://localhost:8081` ou `https://SEU-DOMINIO:8080`), sem duplicar `/api/v1`. Downloads de XML/PDF também exigem Bearer.
+- Os caminhos em `links` começam em `/api/v1`. Resolva-os contra a origem (`http://localhost:8081` ou `https://SEU-DOMINIO`), sem duplicar `/api/v1`. Downloads de XML/PDF também exigem Bearer.
 - Diferencie indisponibilidade de rede de rejeição fiscal. Preserve `request_id`, código e mensagem do erro para diagnóstico, sem registrar credenciais.
 
 Timeout do cliente de referência: conexão 10 segundos e resposta 150 segundos. Os timeouts não garantem que a nota não foi autorizada: sempre recupere a operação original antes de tentar outra emissão.

@@ -8,7 +8,6 @@ use App\Http\ApiException;
 use App\Nfe\CertificateStore;
 use App\Support\Env;
 use App\Support\Logger;
-use App\Support\Paths;
 use App\Tenancy\Tenant;
 
 /**
@@ -147,22 +146,14 @@ final class SefinClient
     private static function curl(string $method, string $url, ?string $body, array $headers, ?int $timeout = null): array
     {
         $cert = CertificateStore::load();
-        $dir = Paths::storage('tmp/nfse/' . Tenant::id());
-        if (!is_dir($dir)) {
-            mkdir($dir, 0700, true);
-        }
+        // mTLS sem arquivos: chave e certificado vão da memória para o cURL (nada de .pem em disco).
         $pass = bin2hex(random_bytes(16));
-        $certFile = $dir . '/' . bin2hex(random_bytes(8)) . '.crt.pem';
-        $keyFile = $dir . '/' . bin2hex(random_bytes(8)) . '.key.pem';
-        $old = umask(0077);
+        $keyPem = '';
         try {
             $key = openssl_pkey_get_private((string) $cert->privateKey);
             if ($key === false || !openssl_pkey_export($key, $keyPem, $pass)) {
                 throw new \RuntimeException('chave privada do certificado ilegível');
             }
-            file_put_contents($keyFile, $keyPem);
-            file_put_contents($certFile, (string) $cert->publicKey);
-            $keyPem = '';
             $buf = '';
             $ch = curl_init($url);
             $h = [];
@@ -172,8 +163,10 @@ final class SefinClient
             curl_setopt_array($ch, [
                 CURLOPT_CUSTOMREQUEST => $method,
                 CURLOPT_HTTPHEADER => $h,
-                CURLOPT_SSLCERT => $certFile,
-                CURLOPT_SSLKEY => $keyFile,
+                CURLOPT_SSLCERT_BLOB => (string) $cert->publicKey,
+                CURLOPT_SSLCERTTYPE => 'PEM',
+                CURLOPT_SSLKEY_BLOB => $keyPem,
+                CURLOPT_SSLKEYTYPE => 'PEM',
                 CURLOPT_KEYPASSWD => $pass,
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
@@ -203,9 +196,7 @@ final class SefinClient
             }
             return ['status' => $status, 'body' => $buf, 'content_type' => $ct];
         } finally {
-            umask($old);
-            @unlink($keyFile);
-            @unlink($certFile);
+            $keyPem = str_repeat("\0", strlen($keyPem));
         }
     }
 }

@@ -63,14 +63,26 @@ final class PdvNfceTest extends TestCase
         self::assertSame($d['xml'], $this->json($get)['xml']);
     }
 
-    public function testXmlArquivadoPermiteConsultaEReplaySemNovaTransmissao(): void
+    public function testXmlNoBackblazePermiteConsultaEReplaySemNovaTransmissao(): void
     {
         \App\Support\Env::set('XML_STORAGE','s3');$objects=[];
+        foreach(['S3_ENDPOINT'=>'https://s3.us-east-005.backblazeb2.com','S3_REGION'=>'us-east-005','S3_BUCKET'=>'emissor','S3_ACCESS_KEY_ID'=>'0050000000000000000001','S3_SECRET_ACCESS_KEY'=>'segredo'] as $k=>$v){\App\Support\Env::set($k,$v);}
         \App\Storage\S3Client::$transport=function($m,$k,$b)use(&$objects){if($m==='PUT'){$objects[$k]=$b;return '';}return $objects[$k];};
         $p=$this->entrada('pdv-arquivo-remoto-0001');$r=$this->emitir($p);
         self::assertSame(201,$r->status,$r->body);$xml=$this->json($r)['xml'];
         \App\Storage\XmlArchive::ciclo(100);
-        self::assertCount(0,JsonStore::files('archive/payloads/*'));
+        self::assertNotEmpty($objects,'Worker enviou os XML ao B2');
+        self::assertSame(0,\App\Storage\XmlArchive::status()['pendentes']);
+        $get=$this->authed('GET','/api/v1/pdv/nfce/'.$p['operacao_id']);
+        self::assertSame(200,$get->status,$get->body);self::assertSame($xml,$this->json($get)['xml']);
+        self::assertSame($xml,$this->json($this->emitir($p))['xml']);self::assertCount(1,FakeTools::$sentXml);
+    }
+
+    public function testXmlFicaNoBancoEPermiteConsultaEReplaySemNovaTransmissao(): void
+    {
+        $p=$this->entrada('pdv-arquivo-banco-0001');$r=$this->emitir($p);
+        self::assertSame(201,$r->status,$r->body);$xml=$this->json($r)['xml'];
+        self::assertCount(0,JsonStore::files('archive/index/*'),'XML novo não usa índice externo');
         $stored=JsonStore::read(Tenant::path('pdv/'.hash('sha256',$p['operacao_id']).'.json'));
         self::assertArrayNotHasKey('xml',$stored);self::assertArrayHasKey('xml_arquivo',$stored);
         $get=$this->authed('GET','/api/v1/pdv/nfce/'.$p['operacao_id']);

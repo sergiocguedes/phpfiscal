@@ -1,45 +1,93 @@
-# API pública HTTPS em :8080; Supabase e B2 externos. Não inicia PostgreSQL.
-name: emissor-online
+# VPS Linux: PostgreSQL próprio, PHP-FPM, worker e Caddy (HTTPS automático Let's Encrypt).
+# Instale/atualize com: sudo bash deploy/instalar-vps.sh <dominio> <email-admin>
+#
+# Fora do banco existem só os dados de inicialização, em /etc/phpfiscal (root, 600), FORA do projeto:
+#   bootstrap.env  -> DATABASE_PASSWORD e CERT_ENCRYPTION_KEY (chave-mestra) para a API
+#   postgres.env   -> POSTGRES_PASSWORD para o banco
+#   compose.env    -> DOMINIO (não é segredo)
+# Todo o resto da configuração (inclusive as credenciais do Backblaze B2) fica cifrado no banco e é editado
+# em https://<dominio>/configuracao. O worker envia os XML pendentes ao B2 quando ele estiver ligado.
+name: phpfiscal
 x-app: &app
   build: {context: ., target: fiscal-fpm}
-  image: emissor-fiscal-online:3.1
+  image: phpfiscal-api:3.2
   restart: unless-stopped
   user: "10096:10096"
+  env_file: [/etc/phpfiscal/bootstrap.env]
+  environment:
+    DATABASE_DSN: "pgsql:host=db;port=5432;dbname=fiscal"
+    DATABASE_USER: fiscal
   volumes:
     - ..:/app:ro
-    - ../.env.online:/app/.env:ro
-    - ../storage-online:/app/storage
+    - fiscal-storage:/app/storage
+  networks: [interna, saida]
   security_opt: [no-new-privileges:true]
   cap_drop: [ALL]
   logging:
     driver: json-file
     options: {max-size: "10m", max-file: "5"}
 services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    env_file: [/etc/phpfiscal/postgres.env]
+    environment:
+      POSTGRES_DB: fiscal
+      POSTGRES_USER: fiscal
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes: [fiscal-db:/var/lib/postgresql/data]
+    networks: [interna]          # rede interna: o banco não tem porta publicada nem acesso à internet
+    shm_size: 256mb
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fiscal -d fiscal"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
   preparar:
     <<: *app
     restart: "no"
     command: [php, bin/banco.php]
+    depends_on:
+      db: {condition: service_healthy}
   php:
     <<: *app
     command: [php-fpm, -F]
     depends_on:
       preparar: {condition: service_completed_successfully}
-  web:
-    image: nginx:stable-alpine
-    user: "101:101"
-    restart: unless-stopped
-    read_only: true
-    tmpfs: [/tmp]
-    ports: ["8080:8443"]
-    volumes:
-      - ./nginx-online.conf:/etc/nginx/nginx.conf:ro
-      - ../secrets/tls:/etc/nginx/tls:ro
-    security_opt: [no-new-privileges:true]
-    cap_drop: [ALL]
-    depends_on:
-      php: {condition: service_started}
   worker:
     <<: *app
     command: [php, bin/worker.php]
     depends_on:
       preparar: {condition: service_completed_successfully}
+  web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMINIO: ${DOMINIO:?Informe DOMINIO em /etc/phpfiscal/compose.env}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [saida]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      php: {condition: service_started}
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+networks:
+  interna: {internal: true}
+  saida: {}
+volumes:
+  fiscal-db:
+  fiscal-storage:
+  caddy-data:
+  caddy-config:

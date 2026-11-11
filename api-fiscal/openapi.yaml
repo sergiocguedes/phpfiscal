@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "API Fiscal — NF-e, NFC-e e NFS-e",
-    "version": "3.1.0-api",
-    "description": "API fiscal central. Ambientes independentes por empresa: ambiente_nfe, ambiente_nfce e ambiente_nfse (1 produção, 2 homologação), sem trava global ALLOW_PRODUCAO. Responsável técnico do desenvolvedor em /api/v1/admin/config. NFS-e recebe o serviço completo no JSON; não há catálogo de serviços. RTC recebe CST/cClassTrib, valores e totais no modo informado, sem tabelas tributárias locais nem cálculo de IBS/CBS. Mantida validação estrutural XSD. Credenciais centrais usam X-Empresa-Id."
+    "version": "3.2.0-api",
+    "description": "API fiscal central. Ambientes independentes por empresa: ambiente_nfe, ambiente_nfce e ambiente_nfse (1 produção, 2 homologação), sem trava global ALLOW_PRODUCAO. Responsável técnico do desenvolvedor em /api/v1/admin/config. Configuração do sistema (URL, sessões, SMTP, limites, NFS-e) cifrada no PostgreSQL em /api/v1/admin/configuracao, somente por sessão de administrador central. NFS-e recebe o serviço completo no JSON; não há catálogo de serviços. RTC recebe CST/cClassTrib, valores e totais no modo informado, sem tabelas tributárias locais nem cálculo de IBS/CBS. Mantida validação estrutural XSD. Credenciais centrais usam X-Empresa-Id."
   },
   "servers": [
     {
@@ -3527,7 +3527,7 @@
         "tags": [
           "Administração central"
         ],
-        "summary": "Consultar backend e situação do arquivamento XML",
+        "summary": "Consultar destino dos XML (banco ou Backblaze B2) e fila de envio",
         "description": "Exige administrador central; operadores têm acesso somente à gestão de empresas. Mutações por sessão exigem X-CSRF-Token.",
         "responses": {
           "200": {
@@ -3541,15 +3541,27 @@
                       "type": "string"
                     },
                     "provedor": {
-                      "type": "string"
+                      "type": "string",
+                      "enum": [
+                        "banco",
+                        "b2"
+                      ]
+                    },
+                    "b2_configurado": {
+                      "type": "boolean"
                     },
                     "pendentes": {
-                      "type": "integer"
+                      "type": "integer",
+                      "description": "No banco, aguardando o worker enviar ao B2"
                     },
                     "arquivados": {
-                      "type": "integer"
+                      "type": "integer",
+                      "description": "Enviados e conferidos no B2"
                     },
                     "com_falha": {
+                      "type": "integer"
+                    },
+                    "legado_pendente": {
                       "type": "integer"
                     }
                   }
@@ -6673,6 +6685,172 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/configuracao": {
+      "get": {
+        "tags": [
+          "Administração central"
+        ],
+        "summary": "Ler a configuração do sistema (cifrada no banco)",
+        "description": "Somente sessão de administrador central; chaves de API são recusadas. Segredos nunca são devolvidos, só `definido`.",
+        "responses": {
+          "200": {
+            "description": "Configuração",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracaoSistema"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autenticado"
+          },
+          "403": {
+            "description": "Administrador central por sessão obrigatório"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/configuracao/{grupo}": {
+      "put": {
+        "tags": [
+          "Administração central"
+        ],
+        "summary": "Salvar um grupo da configuração do sistema",
+        "description": "Grupos: acesso, sessao, portal, api, email, fiscal, armazenamento (XML no banco ou Backblaze B2; com B2, exige endpoint, região, bucket, keyID e applicationKey). Chave omitida ou vazia volta ao padrão; segredo vazio mantém o atual; `limpar_segredos` apaga. Exige X-CSRF-Token.",
+        "parameters": [
+          {
+            "name": "grupo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "acesso",
+                "sessao",
+                "portal",
+                "api",
+                "email",
+                "fiscal",
+                "armazenamento"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "integer",
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "properties": {
+                  "limpar_segredos": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "SMTP_HOST": "smtp.suaempresa.com.br",
+                "SMTP_PORT": "587",
+                "SMTP_SECURE": "tls",
+                "SMTP_USER": "nfe",
+                "SMTP_PASSWORD": "********",
+                "SMTP_FROM": "nfe@suaempresa.com.br"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuração salva",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracaoSistema"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador central por sessão obrigatório"
+          },
+          "404": {
+            "description": "Grupo inexistente"
+          },
+          "422": {
+            "description": "Valores inválidos; nada é gravado"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/configuracao/armazenamento/testar": {
+      "post": {
+        "tags": [
+          "Administração central"
+        ],
+        "summary": "Testar o Backblaze B2 com os valores informados (sem salvar)",
+        "description": "Grava, lê, confere SHA-256 e apaga um objeto sem dados fiscais. applicationKey em branco usa a salva. Somente sessão de administrador central, com X-CSRF-Token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "XML_STORAGE": "s3",
+                "S3_ENDPOINT": "https://s3.us-east-005.backblazeb2.com",
+                "S3_REGION": "us-east-005",
+                "S3_BUCKET": "emissor",
+                "S3_ACCESS_KEY_ID": "005xxxxxxxxxxxx0000000001",
+                "S3_SECRET_ACCESS_KEY": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conexão conferida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "mensagem": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrador central por sessão obrigatório"
+          },
+          "422": {
+            "description": "Campos incompletos ou inválidos"
+          },
+          "502": {
+            "description": "B2 recusou ou não respondeu; mensagem explica o motivo"
           }
         }
       }
@@ -10609,6 +10787,116 @@
           "cCredPres": 1,
           "pCredPresIBS": 1,
           "pCredPresCBS": 3
+        }
+      },
+      "ConfiguracaoItem": {
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string"
+          },
+          "grupo": {
+            "type": "string"
+          },
+          "rotulo": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "text",
+              "url",
+              "int",
+              "bool",
+              "secret",
+              "select",
+              "email"
+            ]
+          },
+          "valor": {
+            "type": "string",
+            "description": "Vazio para segredos"
+          },
+          "definido": {
+            "type": "boolean",
+            "description": "Somente segredos"
+          },
+          "padrao": {
+            "type": "string"
+          },
+          "origem": {
+            "type": "string",
+            "enum": [
+              "banco",
+              "arquivo",
+              "padrao"
+            ]
+          },
+          "ajuda": {
+            "type": "string"
+          },
+          "min": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "opcoes": {
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConfiguracaoSistema": {
+        "type": "object",
+        "properties": {
+          "grupos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "codigo": {
+                  "type": "string"
+                },
+                "titulo": {
+                  "type": "string"
+                },
+                "descricao": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "itens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfiguracaoItem"
+            }
+          },
+          "atualizado_em": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "atualizado_por": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inicializacao": {
+            "type": "object",
+            "description": "Situação de DATABASE_* e CERT_ENCRYPTION_KEY (sem valores)"
+          }
         }
       }
     },

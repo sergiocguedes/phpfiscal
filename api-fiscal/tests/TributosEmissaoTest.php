@@ -219,7 +219,7 @@ final class TributosEmissaoTest extends TestCase
         $this->assertGreaterThan(0, $this->xmlTot($d['xml'])['vTotTrib']);
         // replay idêntico: mesmo resultado, sem nova transmissão
         $replay = $this->json($this->authed('POST', '/api/v1/pdv/nfce', (string) json_encode(['operacao_id' => 'caixa01-venda-calc-1', 'nota' => $nota])));
-        $this->assertSame($d['calculo_tributos'], $replay['calculo_tributos']);
+        $this->assertEquals($d['calculo_tributos'], $replay['calculo_tributos'], 'Replay devolve o mesmo cálculo (jsonb não preserva a ordem das chaves)');
         $this->assertCount(1, FakeTools::$sentXml);
 
         // erro de regra aponta o caminho do PDV

@@ -57,7 +57,7 @@ secrets/danfse-fonts/micross.php
 secrets/danfse-fonts/micross.z
 ```
 
-Nos perfis Compose atuais, a pasta do projeto já está montada em `/app`; os arquivos devem estar em `/app/secrets/danfse-fonts/`, legíveis pelo usuário PHP 10096. Não exponha `secrets` pelo servidor HTTP. Se usar imagem sem o volume do projeto, monte a pasta privadamente e somente para leitura. Não é necessário instalar fontes no sistema Linux nem alterar Supabase/Backblaze.
+Nos perfis Compose atuais, a pasta do projeto já está montada em `/app`; os arquivos devem estar em `/app/secrets/danfse-fonts/`, legíveis pelo usuário PHP 10096. Não exponha `secrets` pelo servidor HTTP. Se usar imagem sem o volume do projeto, monte a pasta privadamente e somente para leitura. Não é necessário instalar fontes no sistema Linux. Na VPS, `deploy/instalar-vps.sh` prepara as fontes quando recebe `FONTES_DANFSE=/pasta`.
 
 Se as fontes faltarem, a impressão retorna erro em vez de trocar silenciosamente de fonte. A geração de um PDF cujo XML já está armazenado não exige transmissão fiscal ou certificado A1.
 

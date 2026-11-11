@@ -179,7 +179,7 @@ return [
 ];
 ```
 
-PHP no Windows usa `http://localhost:8081/api/v1`; PHP dentro do Docker local usa `host.docker.internal`. Online usa HTTPS e a chave da instalação online. Não colocar chaves Supabase/B2 nem senha do A1 no código do cliente, no JavaScript, na URL ou na documentação exportada. Não inserir uma chave administrativa para todos os caixas.
+PHP no Windows usa `http://localhost:8081/api/v1`; PHP dentro do Docker local usa `host.docker.internal`. Online usa HTTPS e a chave da instalação online. Não colocar senha do A1 no código do cliente, no JavaScript, na URL ou na documentação exportada. Não inserir uma chave administrativa para todos os caixas.
 
 ## 9. Procedimento de exportação e conferência
 

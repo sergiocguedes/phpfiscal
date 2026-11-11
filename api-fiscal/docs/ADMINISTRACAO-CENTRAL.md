@@ -83,7 +83,7 @@ O primeiro acesso copia os registros fiscais do formato anterior para `tenants/{
 
 Os usuários que eram proprietários de uma empresa não recebem acesso central por esse motivo. O parâmetro interno `CENTRAL_AUTH=false` existe apenas para fixtures de testes/compatibilidade e não deve ser usado na VPS. Os testes antigos usam criação interna de fixtures; a rota de autocadastro permanece inexistente.
 
-Detalhes de banco externo e B2: [Supabase e Backblaze B2](SUPABASE-B2.md).
+Configuração do sistema (cifrada no banco) e instalação na VPS: [VPS-POSTGRESQL.md](VPS-POSTGRESQL.md).
 
 ## Configuração geral do desenvolvedor
 

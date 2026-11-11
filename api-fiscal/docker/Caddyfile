@@ -1,0 +1,26 @@
+# HTTPS automático (Let's Encrypt) para o domínio em /etc/phpfiscal/compose.env.
+# Certificado e renovação ficam no volume caddy-data; nada para copiar ou renovar à mão.
+{
+	admin off
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+{$DOMINIO} {
+	request_body {
+		max_size 3MB
+	}
+	header -Server
+	# Sem log de acesso: URLs de compartilhamento e consultas não vão para disco.
+	reverse_proxy php:9000 {
+		transport fastcgi {
+			root /app/public
+			env SCRIPT_FILENAME /app/public/index.php
+			env SCRIPT_NAME /index.php
+			dial_timeout 5s
+			read_timeout 150s
+			write_timeout 150s
+		}
+	}
+}

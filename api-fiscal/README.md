@@ -4,7 +4,7 @@ API de NF-e, NFC-e e NFS-e com administração central. Administradores e operad
 
 ## Acesso
 
-Dois perfis de instalação estão disponíveis: [local com PostgreSQL no Docker e online com Supabase/B2, HTTPS na porta 8080](docs/INSTALACAO-LOCAL-ONLINE.md). Para configurar o consumidor, consulte [URL e chave no Delphi](docs/DELPHI-CONFIGURACAO.md).
+Dois perfis de instalação estão disponíveis: [local e online, ambos com PostgreSQL próprio; online com HTTPS automático na porta 443](docs/INSTALACAO-LOCAL-ONLINE.md). Para configurar o consumidor, consulte [URL e chave no Delphi](docs/DELPHI-CONFIGURACAO.md).
 
 - Painel: [http://localhost:8081/](http://localhost:8081/).
 - Documentação OpenAPI: [http://localhost:8081/docs](http://localhost:8081/docs).
@@ -21,7 +21,7 @@ O painel permite cadastrar a empresa, preencher endereço/regime/numeração/CSC
 - [Cálculo de ICMS, IPI, PIS/COFINS, ISSQN e tributos aproximados](docs/TRIBUTOS-CALCULO.md): `POST /api/v1/tributos/calcular`.
 - [Portal do Contador](docs/PORTAL-CONTADOR.md): acesso sem senha pelo atalho dos sistemas (`/portal`), regras fiscais e simulador.
 - [Administração central, empresas e usuários permitidos](docs/ADMINISTRACAO-CENTRAL.md).
-- [PostgreSQL/Supabase, migração e XML no Backblaze B2](docs/SUPABASE-B2.md).
+- [VPS com PostgreSQL próprio, script de instalação e configuração cifrada no banco](docs/VPS-POSTGRESQL.md).
 - Exemplos completos na pasta `examples/`.
 
 As APIs preservam validação, assinatura, transmissão, consulta, cancelamento, inutilização, CC-e para modelo 55 e XML. NFS-e mantém emissão, sincronização, cancelamento e DANFSe via API. O único trabalho automático do worker desta edição é a recuperação das operações NFC-e do PDV.
@@ -40,7 +40,7 @@ docker compose --env-file .env -f docker/compose.yml ps
 docker compose --env-file .env -f docker/compose.yml logs --tail 50
 ```
 
-Para uma nova instalação independente, use o [guia de perfis local e online](docs/INSTALACAO-LOCAL-ONLINE.md): `docker/compose.local.yml` lê `.env.local`; `docker/compose.online.yml` lê `.env.online`. O Compose `docker/compose.yml` atende a instalação existente e lê o `.env` desta pasta. Os perfis não sincronizam dados automaticamente. O painel usa HTML/CSS/JavaScript locais, sem Node, React ou etapa de compilação.
+Para uma nova instalação independente, use o [guia de perfis local e online](docs/INSTALACAO-LOCAL-ONLINE.md): `docker/compose.local.yml` lê `.env.local`; `docker/compose.online.yml` lê `/etc/phpfiscal` (instalado por `deploy/instalar-vps.sh`). O Compose `docker/compose.yml` atende a instalação existente e lê o `.env` desta pasta. Os perfis não sincronizam dados automaticamente. O painel usa HTML/CSS/JavaScript locais, sem Node, React ou etapa de compilação.
 
 ## Estrutura
 
@@ -54,7 +54,7 @@ examples/     JSON de referência
 tests/        testes da edição com dados temporários e SEFAZ/Sefin simuladas
 ```
 
-Na edição central, a persistência usa PostgreSQL (local no desenvolvimento ou externo no Supabase). O schema armazena documentos JSONB e binários; XML pode ser arquivado em bucket B2 privado. Preserve backup do banco, dos XML e do `.env`, necessário para decifrar os certificados. Os dados ficam separados por empresa e ambiente; chaves restritas permanecem vinculadas à sua empresa. Os três tipos começam em homologação; cada um possui seu próprio parâmetro de ambiente na empresa. Regras de ativação, transmissão NFS-e e contingência por UF estão documentadas nos contratos fiscais.
+A persistência usa PostgreSQL (container local ou na VPS). Os XML fiscais ficam no banco ou no Backblaze B2 (configurável na janela `/configuracao`; o worker envia e confere cada XML). A configuração do sistema fica no banco, cifrada, e é editada na janela `/configuracao`; fora do banco só existem a conexão e a chave-mestra. Preserve backup do banco e da `CERT_ENCRYPTION_KEY`, necessária para decifrar certificados e configuração. Os dados ficam separados por empresa e ambiente; chaves restritas permanecem vinculadas à sua empresa. Os três tipos começam em homologação; cada um possui seu próprio parâmetro de ambiente na empresa. Regras de ativação, transmissão NFS-e e contingência por UF estão documentadas nos contratos fiscais.
 
 Esta edição não contém os módulos de marketplace, WooCommerce, MCP, contador, recorrência, lotes CSV, catálogo, marca própria, alertas comerciais, SMTP de notas ou webhooks. A recuperação de senha mantém o e-mail global do sistema ou o log local de desenvolvimento.
 

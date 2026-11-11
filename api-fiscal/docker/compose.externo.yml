@@ -1,4 +1,4 @@
-# Perfil interno legado. Para VPS HTTPS em :8080 use compose.online.yml.
+# Perfil interno legado. Para VPS use compose.online.yml (deploy/instalar-vps.sh).
 # Execute a partir de api-fiscal/: docker compose -f docker/compose.externo.yml up -d --build
 name: emissor-fiscal-externo
 x-app: &app

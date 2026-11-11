@@ -13,7 +13,7 @@ if [ "$st" -ne 0 ]; then
   [ "$st" -eq 1 ] && { echo "Recusado: PHP vulnerável. Reconstrua a imagem (docker compose build --pull --no-cache)." >&2; exit 1; }
 fi
 POST_READING=0
-[ "$(grep -E '^PERMITIR_MULTIPART=' .env 2>/dev/null | cut -d= -f2)" = "true" ] && POST_READING=1
+[ "$(php bin/configuracao.php valor PERMITIR_MULTIPART 2>/dev/null)" = "1" ] && POST_READING=1
 export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-4}"
 exec php \
   -d expose_php=0 -d display_errors=0 -d log_errors=1 \

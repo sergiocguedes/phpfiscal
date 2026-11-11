@@ -15,13 +15,14 @@ file_put_contents($env, implode("\n", [
     'CERT_ENCRYPTION_KEY=' . base64_encode(random_bytes(32)),
     'AUTH_MAX_FAILURES=5',
     'STORAGE_DIR=' . "$tmp/storage",
+    'STORAGE_DRIVER=files',
 ]));
 putenv("APP_ENV_FILE=$env");
 if(getenv('FISCAL_TEST_PG')==='1'){
     $source=file_get_contents(dirname(__DIR__).'/.env');
     $extra=[];
     foreach(explode("\n",$source) as $line){if(preg_match('/^DATABASE_(DSN|USER|PASSWORD)=/',$line)){$extra[]=trim($line);}}
-    $extra[]='STORAGE_DRIVER=pgsql';$extra[]='STORAGE_NAMESPACE=tests_'.getmypid();
+    $extra[]='STORAGE_DRIVER=pgsql';$extra[]='STORAGE_DIR='."$tmp/storage";$extra[]='STORAGE_NAMESPACE=tests_'.getmypid();
     file_put_contents($env,"\n".implode("\n",$extra),FILE_APPEND);
 }
 

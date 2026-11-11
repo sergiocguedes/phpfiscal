@@ -15,7 +15,7 @@ Integração preparada para o projeto `D:\fontes\php\www\emissor_servicos`. O JS
 | MadBuilder no container → API no outro container | `http://host.docker.internal:8081/api/v1` |
 | MadBuilder executando PHP diretamente no Windows → API | `http://localhost:8081/api/v1` |
 
-O navegador e o processo PHP não compartilham o mesmo significado de `localhost`: no container, localhost aponta para o próprio container. Supabase/B2 e `.env.online` não são necessários para estes testes; a API local continua com seu PostgreSQL e armazenamento locais.
+O navegador e o processo PHP não compartilham o mesmo significado de `localhost`: no container, localhost aponta para o próprio container. A API local continua com seu PostgreSQL e armazenamento locais.
 
 O MadBuilder tem seu próprio banco de negócio e a API tem seu banco fiscal. É possível usar o mesmo servidor PostgreSQL Docker, com **bancos e usuários separados**. Não aponte as tabelas do MadBuilder para o banco fiscal nem modifique o schema da API para instalar o sistema consumidor. No Docker, conecte os containers por uma rede comum e use um alias estável para o servidor; não é preciso publicar a porta PostgreSQL no Windows. Se o PHP executar no Windows, publique PostgreSQL apenas em `127.0.0.1` e configure essa porta no MadBuilder.
 
@@ -31,7 +31,7 @@ Após correção do banco de origem informada pelo usuário, o MadBuilder usa os
 
 O arquivo preenchido fica no servidor MadBuilder, não no navegador. Contém URL e uma chave restrita por CNPJ. Uma chave central exige também `empresa_id`, mas prefira chaves restritas. Não versione esse arquivo. Para guardar fora da pasta pública, defina `NFSE_API_CONFIG` no processo PHP com seu caminho absoluto.
 
-Para a empresa 11229442000120, a configuração local foi preparada com chave restrita. Nenhuma chave Supabase/B2 foi copiada para o MadBuilder. `NFSeService::configurarCliente()` agora monta a configuração pelo cadastro do emissor e sincroniza nome/ambiente NFS-e, identidade fiscal, endereço, prestador/IM/regime/série e A1 através de `/tenant`, `/config`, `/nfse/config` e `/certificado`. Não é necessário preencher esses dados manualmente no painel da API. A chave restrita identifica a empresa existente; criar uma empresa nova exige o fluxo administrativo central. A sincronização preserva a numeração existente e não altera ambientes NF-e/NFC-e.
+Para a empresa 11229442000120, a configuração local foi preparada com chave restrita. `NFSeService::configurarCliente()` agora monta a configuração pelo cadastro do emissor e sincroniza nome/ambiente NFS-e, identidade fiscal, endereço, prestador/IM/regime/série e A1 através de `/tenant`, `/config`, `/nfse/config` e `/certificado`. Não é necessário preencher esses dados manualmente no painel da API. A chave restrita identifica a empresa existente; criar uma empresa nova exige o fluxo administrativo central. A sincronização preserva a numeração existente e não altera ambientes NF-e/NFC-e.
 
 `NfseApiConfiguracao` normaliza os dados no emissor antes do envio. Se cidade/IBGE estiverem vazios, resolve o CEP via HTTPS no ViaCEP, exige correspondência de UF e retorna aviso para completar o cadastro. A montagem da nota usa a mesma resolução; não presume Manaus/AM. IE é opcional para NFS-e e segue como `null` quando ausente; a IM vem do cadastro. A abertura e validade do A1 são conferidas no emissor antes das chamadas, e senha/base64 não aparecem nos retornos ou artefatos.
 

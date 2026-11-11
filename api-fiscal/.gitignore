@@ -1,10 +1,13 @@
-.env
-.env.local
-.env.online
-storage-local/
-storage-online/
-storage/
-vendor/
-run/
-secrets/
-var/
+# Caminhos ancorados na raiz de api-fiscal/ ("/storage/"), para não esconder src/Storage
+# no Windows, onde o git não diferencia maiúsculas de minúsculas (core.ignorecase=true).
+/.env
+/.env.*
+!/.env.example
+!/.env.local.example
+/storage/
+/storage-local/
+/storage-online/
+/vendor/
+/run/
+/secrets/
+/var/

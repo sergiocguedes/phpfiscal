@@ -25,8 +25,10 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
             foreach(['fiscal_documents','fiscal_blobs','fiscal_api_settings'] as $table){$q=\App\Storage\PostgresStore::db()->prepare("DELETE FROM $table WHERE namespace=?");$q->execute([$ns]);}
         }
         \App\Support\Env::set('CENTRAL_AUTH','false');
-        \App\Support\Env::set('XML_STORAGE','local');
+        \App\Support\Settings::reset();
+        \App\Support\Env::set('XML_STORAGE','banco');
         \App\Storage\S3Client::$transport=null;
+        foreach(['S3_ENDPOINT','S3_REGION','S3_BUCKET','S3_ACCESS_KEY_ID','S3_SECRET_ACCESS_KEY','S3_PREFIX'] as $k){\App\Support\Env::set($k,'');}
         \App\Nfe\SefazClient::$factory = null;
         \App\Support\Env::set('ALLOW_PRODUCAO', 'false');
         \App\Support\Env::set('NFSE_LEIAUTE_PRODUCAO', '');

@@ -85,8 +85,8 @@ final class Logger
     /** Remove valores que pareçam segredos conhecidos do .env. */
     private static function scrub(string $s): string
     {
-        foreach (['API_KEY', 'WEBHOOK_INBOUND_SECRET', 'WEBHOOK_OUTBOUND_SECRET', 'CERT_ENCRYPTION_KEY', 'SMTP_PASSWORD'] as $k) {
-            $v = Env::get($k);
+        foreach (['API_KEY', 'WEBHOOK_INBOUND_SECRET', 'WEBHOOK_OUTBOUND_SECRET', 'CERT_ENCRYPTION_KEY', 'SMTP_PASSWORD', 'DATABASE_PASSWORD'] as $k) {
+            try { $v = Env::get($k); } catch (\Throwable) { $v = null; } // configuração ilegível não pode impedir o log
             if ($v !== null && strlen($v) >= 8) {
                 $s = str_replace($v, '[redacted]', $s);
             }
