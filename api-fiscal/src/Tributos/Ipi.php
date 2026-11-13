@@ -28,11 +28,7 @@ final class Ipi
         }
         $f = "$c->campo.regra.ipi";
         if ($this->op['modelo'] === 65) {
-            // IPI vindo da matriz (regra da NF-e) é ignorado em silêncio; informado no item, avisa
-            $daMatriz = $c->regraAplicada !== null && !in_array('ipi', array_map(fn($x) => explode('.', explode(' ', $x)[0])[0], $c->regraAplicada['sobreposicoes']), true);
-            if (!$daMatriz) {
-                $c->alerta('NFC-e não tem IPI: regra.ipi ignorada');
-            }
+            $c->alerta('NFC-e não tem IPI: regra.ipi ignorada');
             return null;
         }
         $cst = $c->p('ipi', 'CST');

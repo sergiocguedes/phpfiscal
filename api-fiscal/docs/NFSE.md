@@ -45,28 +45,35 @@ Exemplo com serviço informado pela integração:
 }
 ```
 
-### Regra de ISS cadastrada (`regra_iss`)
+### Códigos fiscais do serviço no JSON
 
-Com regras de ISS cadastradas (`/api/v1/tributacao/regras-iss`, mantidas no Portal do Contador), a emissão pode informar só o código da regra. A API preenche `servico.codigo_tributacao_nacional`, `nbs`, `codigo_tributacao_municipal`, `codigo_interno` e `valores.aliquota_iss`. O que vier no JSON prevalece sobre a regra. A descrição do serviço continua vindo da nota. Com `federais` na regra e sem `tributos_federais` na nota, a API calcula PIS/COFINS, IRRF e as retenções (`tpRetPisCofins`, `vRetIRRF`, `vRetCSLL`); com `ibs_cbs` na regra, completa o `ibs_cbs` enviado na nota (indicador da operação, cClassTrib, CST e diferimento). Detalhes em `docs/TRIBUTOS-CALCULO.md`.
+Os códigos fiscais vêm sempre no JSON de cada emissão, enviados pelo sistema que integra; a API não tem cadastro de regras de ISS (o antigo `regra_iss` foi retirado e é recusado com 422):
+
+- `servico`: `codigo_tributacao_nacional`, `nbs`, `codigo_tributacao_municipal`, `codigo_interno` e a descrição.
+- `valores.aliquota_iss`: 0 a 5%, só em operação tributável. Se o regime do prestador ou o convênio do município não permitir informar a alíquota, a emissão a omite na DPS (com aviso).
+- Tributos federais, de um destes dois jeitos (os dois juntos dão 422):
+  - **`federais`** — percentuais; a API calcula o grupo `tributos_federais` (tribFed) no envio: `{cst_pis_cofins, aliquota_pis?, aliquota_cofins?, aliquota_irrf?, aliquota_csll?, tipo_retencao}`. Base = serviço − desconto incondicionado; valores com 2 casas. `tipo_retencao` é o `tpRetPisCofins` (0 a 9) e o `vRetCSLL` leva a soma de PIS, COFINS e CSLL **retidos** conforme o tipo (NT 007). O Delphi somava PIS e COFINS no `vRetCSLL` mesmo quando não eram retidos; a API soma só os retidos.
+  - **`tributos_federais`** — valores já calculados pelo ERP, sem recálculo (tabela abaixo).
+- `ibs_cbs`: informado (a NFS-e não calcula IBS/CBS), ver [NFSE-IBS-CBS.md](NFSE-IBS-CBS.md).
+
+O CST de PIS/COFINS segue a NFS-e Nacional (00 a 09, 49, 50–56, 60–67, 70–75, 98, 99): 00 = nenhum, 07 = isenta, 08 = sem incidência, 09 = suspensão e 49 = outras operações de saída. A tabela `CST_ISS` do ClickPDV mostra descrições diferentes para 00, 07 e 09: confira os códigos ao migrar.
 
 **Município emissor (`codigo_municipio`)**: é sempre o código IBGE do endereço nos dados fiscais da empresa (`PUT /api/v1/config`), o mesmo da NF-e/NFC-e. Não é mais informado no `PUT /nfse/config` (valor diferente é recusado com 422).
 
 **Opção pelo Simples (`opcao_simples_nacional`)**: vem do regime tributário (CRT) dos dados fiscais da empresa (`PUT /api/v1/config`): CRT 3 regime normal → 1 não optante; CRT 4 MEI → 2 MEI; CRT 1 Simples Nacional e CRT 2 excesso de sublimite → 3 ME/EPP. Não precisa ser enviada no `PUT /nfse/config`; se for enviada diferente do regime, é recusada (422). Ao trocar o CRT, a NFS-e passa a usar a nova opção na hora (`regime_apuracao_sn` só vale para ME/EPP).
 
-**Tributação de serviços da empresa** (`PUT /api/v1/nfse/config`, aba "Tributação Serviços" do ClickPDV): além de `regime_especial` e `regime_apuracao_sn`, o cadastro guarda os padrões do ISSQN usados quando nem a nota nem a regra informam: `tributacao_iss` (1 tributável, 2 imunidade, 4 não incidência; padrão 1), `tipo_imunidade` (0 a 5, só com imunidade), `retencao_iss` (1 não retido, 2 retido pelo tomador; padrão 1) e `suspensao` (`null` ou `{tipo: 1 judicial | 2 administrativo, numero_processo: 30 dígitos}`, só com operação tributável). Ordem: JSON da nota > empresa (a regra de ISS não guarda esses campos). O PUT substitui o cadastro inteiro: envie esses campos em toda atualização.
+**Tributação de serviços da empresa** (`PUT /api/v1/nfse/config`, aba "Tributação Serviços" do ClickPDV): além de `regime_especial` e `regime_apuracao_sn`, o cadastro guarda os padrões do ISSQN usados quando a nota não informa: `tributacao_iss` (1 tributável, 2 imunidade, 4 não incidência; padrão 1), `tipo_imunidade` (0 a 5, só com imunidade), `retencao_iss` (1 não retido, 2 retido pelo tomador; padrão 1) e `suspensao` (`null` ou `{tipo: 1 judicial | 2 administrativo, numero_processo: 30 dígitos}`, só com operação tributável). Ordem: JSON da nota > empresa. O PUT substitui o cadastro inteiro: envie esses campos em toda atualização.
 
 ```json
 {
-  "regra_iss": "SOFTWARE-RET",
-  "servico": { "descricao": "Licença mensal do sistema" },
+  "servico": { "codigo_tributacao_nacional": "010501", "nbs": "115022000", "descricao": "Licença mensal do sistema" },
   "tomador": { "cnpj": "11444777000161", "nome": "Cliente Ltda" },
-  "valores": { "servico": 1500.00 }
+  "valores": { "servico": 1500.00, "aliquota_iss": 5 },
+  "federais": { "cst_pis_cofins": "01", "aliquota_pis": 0.65, "aliquota_cofins": 3, "aliquota_irrf": 1.5, "aliquota_csll": 1, "tipo_retencao": 3 }
 }
 ```
 
-Código inexistente: 422 no campo `regra_iss`. A resposta e o registro trazem `regra_iss` (código e descrição) para conferência. Listagem e detalhe para o ERP: `GET /api/v1/tributacao/regras-iss` e `GET /api/v1/tributacao/regras-iss/{codigo}` (ver `docs/TRIBUTOS-CALCULO.md`).
-
-O objeto `servico` é obrigatório em cada emissão (com `regra_iss`, basta a descrição). `servico_id` não é aceito; não há cadastro de serviços. Informe o tomador diretamente; não existe catálogo de clientes nesta edição.
+O objeto `servico` é obrigatório em cada emissão, com os códigos e a descrição. `servico_id` não é aceito; não há cadastro de serviços. Informe o tomador diretamente; não existe catálogo de clientes nesta edição.
 
 ## Tributos informados pelo Delphi
 

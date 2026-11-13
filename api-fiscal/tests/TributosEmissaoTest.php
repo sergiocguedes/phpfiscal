@@ -146,14 +146,50 @@ final class TributosEmissaoTest extends TestCase
         $this->assertContains('itens[0].regra.icms.pICMSST', array_column($d['erro']['detalhes'], 'campo'));
 
         $p = json_decode($this->samplePayload(), true);
-        $p['calculo_tributos'] = ['metodo_desoneracao' => 'por_fora'];
+        $p['calculo_tributos'] = ['aliquotas_ibscbs' => ['pIBSUF' => 0.1, 'pIBSMun' => 0, 'pCBS' => 0.9]];
         $d = $this->json($this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($p)));
-        $this->assertContains('calculo_tributos', array_column($d['erro']['detalhes'], 'campo'));
+        $this->assertContains('calculo_tributos.aliquotas_ibscbs', array_column($d['erro']['detalhes'], 'campo'), 'itens só com impostos: cálculo do ERP');
 
         $p = $this->nfe([['cfop' => '5102', 'icms' => ['orig' => 0, 'CST' => '00', 'pICMS' => 18], 'pis' => ['CST' => '07'], 'cofins' => ['CST' => '07']]]);
         $p['calculo_tributos'] = ['metodo_desoneracao' => 'por_fora'];
         $d = $this->json($this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($p)));
         $this->assertContains('calculo_tributos.metodo_desoneracao', array_column($d['erro']['detalhes'], 'campo'));
+    }
+
+    public function testModoDoCalculoApiOuErp(): void
+    {
+        $this->configurar(3);
+        // erp: as tags vêm calculadas no JSON e a API não recalcula (o exemplo traz itens[].impostos)
+        $p = json_decode($this->samplePayload(), true);
+        $p['calculo_tributos'] = ['modo' => 'erp'];
+        $r = $this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($p));
+        $this->assertSame(200, $r->status, $r->body);
+        $d = $this->json($r);
+        $this->assertArrayNotHasKey('calculo_tributos', $d);
+        $this->assertStringContainsString('<CSOSN>102</CSOSN>', $d['xml'], 'tags do ERP vão para o XML como vieram');
+        // erp com regra no item: recusa (não mistura)
+        $q = $this->nfe([$this->regraSt()]);
+        $q['calculo_tributos'] = ['modo' => 'erp'];
+        $d = $this->json($this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($q)));
+        $this->assertContains('itens[0].regra', array_column($d['erro']['detalhes'], 'campo'));
+
+        // api: a regra do item é calculada no envio
+        $q['calculo_tributos'] = ['modo' => 'api'];
+        $r = $this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($q));
+        $this->assertSame(200, $r->status, $r->body);
+        $this->assertArrayHasKey('calculo_tributos', $this->json($r));
+        // api com item só com impostos: recusa
+        $p['calculo_tributos'] = ['modo' => 'api'];
+        $d = $this->json($this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($p)));
+        $this->assertContains('itens[0].regra', array_column($d['erro']['detalhes'], 'campo'));
+        // valor inválido e campos da matriz retirada
+        $p['calculo_tributos'] = ['modo' => 'automatico', 'operacao' => 'VENDA'];
+        $p['itens'][0]['perfil'] = '1';
+        $d = $this->json($this->authed('POST', '/api/v1/nfe?dry_run=1', (string) json_encode($p)));
+        $campos = array_column($d['erro']['detalhes'], 'campo');
+        foreach (['calculo_tributos.modo', 'calculo_tributos.operacao', 'itens[0].perfil'] as $c) {
+            $this->assertContains($c, $campos);
+        }
     }
 
     public function testInterestadualUsaUfDoDestinatario(): void

@@ -26,10 +26,13 @@ use App\Tenancy\TenantStore;
  *    fica gravado como hash. Vai no fragmento da URL (#t=), que não chega a logs de servidor.
  * 2. O portal troca o token por uma sessão: POST /api/v1/portal/sessao → cookie HttpOnly/SameSite=Strict.
  *    Sessão com expiração por inatividade (PORTAL_IDLE_SECONDS, 3600) e absoluta (PORTAL_ABSOLUTE_SECONDS, 28800).
- * 3. A sessão do portal só é aceita nas rotas marcadas com 'portal' => true (tributação, cálculo, contexto).
+ * 3. A sessão do portal só é aceita nas rotas marcadas com 'portal' => true (contexto, sair).
  *    Emissão, cancelamento, CC-e, inutilização, certificado e configuração: 403.
  *
- * Perfis: fiscal (cliente ou contador: consulta e mantém as regras tributárias) e consulta (só leitura).
+ * A tributação (perfis, operações e regras) foi retirada: os códigos fiscais vêm no JSON de cada nota enviado pelo ERP.
+ * O portal tem só a aba inicio; as abas antigas pedidas por atalhos já distribuídos abrem o início, sem erro.
+ *
+ * Perfis: fiscal e consulta (só leitura).
  */
 final class PortalAcesso
 {
@@ -37,7 +40,9 @@ final class PortalAcesso
     public const TIPOS_USUARIO = ['cliente', 'contador'];
     /** Acesso de suporte: aberto pelo painel administrativo por um usuário central (administrador ou operador). */
     public const SUPORTE = 'suporte';
-    public const ABAS = ['inicio', 'perfis', 'operacoes', 'regras-icms', 'regras-piscofins', 'regras-iss', 'simulador'];
+    public const ABAS = ['inicio'];
+    /** Abas da tributação retirada: aceitas (atalhos antigos dos sistemas) e abertas como inicio; abrir.acao/chave são ignorados. */
+    public const ABAS_RETIRADAS = ['perfis', 'operacoes', 'regras-icms', 'regras-piscofins', 'regras-iss', 'simulador'];
 
     public static function cookieName(): string
     {
@@ -83,7 +88,14 @@ final class PortalAcesso
         }
         $abrir = is_array($in['abrir'] ?? null) ? $in['abrir'] : [];
         $aba = $abrir['aba'] ?? 'inicio';
-        in_array($aba, self::ABAS, true) ?: $e->add('abrir.aba', 'Uma de: ' . implode(', ', self::ABAS));
+        if (in_array($aba, self::ABAS_RETIRADAS, true)) {
+            $aba = 'inicio';
+        } elseif (!in_array($aba, self::ABAS, true)) {
+            $e->add('abrir.aba', 'Uma de: ' . implode(', ', self::ABAS));
+        } elseif (isset($abrir['acao']) || isset($abrir['chave'])) {
+            $e->add('abrir.acao', 'O portal não tem janelas para abrir direto (a tributação foi retirada)');
+        }
+        $rota = null;
         $sistema = isset($in['sistema']) ? Validate::text($in['sistema'], 1, 60) : null;
         if (isset($in['sistema']) && $sistema === null) {
             $e->add('sistema', '1 a 60 caracteres');
@@ -100,7 +112,7 @@ final class PortalAcesso
         $acesso = [
             'id' => 'acs_' . substr($hash, 0, 16),
             'tenant_id' => $tenant, 'perfil' => $perfil, 'tipo_usuario' => $tipo, 'usuario' => $usuario,
-            'aba' => $aba, 'sistema' => $sistema, 'criado_por' => $p->actor(), 'criado_em' => time(),
+            'aba' => $aba, 'rota' => $rota, 'sistema' => $sistema, 'criado_por' => $p->actor(), 'criado_em' => time(),
             'expira_em' => time() + $validade, 'usado_em' => null,
         ];
         JsonStore::write("portal/acessos/$hash.json", $acesso);
@@ -151,7 +163,7 @@ final class PortalAcesso
         $sid = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $s = [
             'acesso_id' => $a['id'], 'tenant_id' => $a['tenant_id'], 'perfil' => $a['perfil'], 'tipo_usuario' => $a['tipo_usuario'],
-            'usuario' => $a['usuario'], 'sistema' => $a['sistema'], 'aba' => $a['aba'], 'csrf' => bin2hex(random_bytes(32)),
+            'usuario' => $a['usuario'], 'sistema' => $a['sistema'], 'aba' => $a['aba'], 'rota' => $a['rota'] ?? null, 'csrf' => bin2hex(random_bytes(32)),
             'criado_em' => time(), 'ultimo_acesso' => time(), 'ip' => $req->ip,
         ];
         JsonStore::write('portal/sessoes/' . hash('sha256', $sid) . '.json', $s);
@@ -209,7 +221,7 @@ final class PortalAcesso
         return [
             'empresa' => ['id' => $s['tenant_id'], 'nome' => $t['nome'] ?? '', 'cnpj' => $t['cnpj'] ?? null],
             'usuario' => $s['usuario'], 'perfil' => $s['perfil'], 'tipo_usuario' => $s['tipo_usuario'],
-            'pode_alterar' => $s['perfil'] === 'fiscal', 'aba' => $s['aba'], 'sistema' => $s['sistema'], 'csrf_token' => $s['csrf'],
+            'pode_alterar' => $s['perfil'] === 'fiscal', 'aba' => $s['aba'], 'rota' => $s['rota'] ?? null, 'sistema' => $s['sistema'], 'csrf_token' => $s['csrf'],
         ];
     }
 

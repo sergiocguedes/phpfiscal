@@ -2,7 +2,7 @@
 
 Calcula ICMS (CST e CSOSN, ST, FCP, desoneração, diferimento, monofásico), IPI, PIS, COFINS, ISSQN e os tributos aproximados da Lei 12.741/2012 de uma venda, item a item, com os totais da nota. **Só calcula**: não grava, não numera e não transmite. Usa a mesma autenticação das demais rotas da empresa (chave de API ou sessão; credencial central com `X-Empresa-Id`).
 
-A regra tributária de cada item vem da matriz de regras da empresa (perfis cadastrados no painel) ou informada no JSON. O mesmo cálculo roda dentro de `POST /api/v1/nfe` e `/api/v1/pdv/nfce` (seção "Cálculo na emissão").
+Os códigos fiscais de cada item (CFOP, CST/CSOSN, alíquotas, cClassTrib) vêm **sempre no JSON**, enviados pelo sistema que integra (ERP, ex.: sistema feito no MadBuilder). A API não mantém cadastro de regras, perfis, operações nem tabelas de alíquotas ou de cClassTrib. O mesmo cálculo roda dentro de `POST /api/v1/nfe` e `/api/v1/pdv/nfce`, no momento do envio (seção "Cálculo na emissão"); lá também é possível enviar as tags já calculadas pelo ERP (`calculo_tributos.modo = erp`).
 
 ## Entrada
 
@@ -42,9 +42,9 @@ A regra tributária de cada item vem da matriz de regras da empresa (perfis cada
 | `itens[].valor_total` | quantidade × valor_unitario | informe quando o PDV já tem o total do item |
 | `itens[].servico` | false | true: calcula ISSQN e não ICMS/IPI |
 | `itens[].qtd_tributavel_unidade` | 1 | combustível (monofásico): quantidade tributada por unidade vendida |
-| `operacao.data` | hoje (horário de Brasília) | `AAAA-MM-DD`: vigência do cClassTrib e se o `valor_item` soma IBS/CBS (a partir de 2027) |
-| `operacao.aliquotas_ibscbs` | tabela da API | `{pIBSUF, pIBSMun, pCBS}`: se enviado, é usado no lugar da tabela de alíquotas da API |
-| `operacao.municipio_destino` | município do emitente | código IBGE do destinatário: escolhe as alíquotas de IBS/CBS da tabela |
+| `operacao.data` | hoje (horário de Brasília) | `AAAA-MM-DD`: se o `valor_item` soma IBS/CBS (a partir de 2027) |
+| `operacao.aliquotas_ibscbs` | — | `{pIBSUF, pIBSMun, pCBS}` em %: obrigatório quando algum item calcula IBS/CBS |
+| `operacao.municipio_destino` | município do emitente | código IBGE do destinatário: registrado na fotografia do IBS/CBS |
 | `operacao.credito_presumido` | — | `{cCredPres, pCredPresIBS?, pCredPresCBS?}` da natureza da operação no ERP; vale para todos os itens com IBS/CBS (o item pode trocar em `itens[].credito_presumido` ou anular com `null`) |
 | `emitente.codigo_municipio` | configuração da empresa | município do emitente (usado quando não há destino) |
 | `itens[].cclasstrib` | — | cClassTrib do produto: calcula IBS/CBS (ver "IBS/CBS") |
@@ -58,7 +58,9 @@ Os nomes seguem as tags do leiaute da NF-e.
 - `ipi` (só NF-e): `CST`, `cEnq` (padrão 999), `pIPI` ou `vUnid`.
 - `iss` (serviço): `aliquota`, `cMunFG`, `cListServ`, `indISS`, `indIncentivo`.
 - `ibpt`: `federal`, `estadual`, `municipal` (%).
-- `ibscbs` (Reforma Tributária, regime normal): `cClassTrib` (ou `itens[].cclasstrib`), `CST` opcional (vem da tabela), `pDif` (CST 510).
+- `ibscbs` (Reforma Tributária, regime normal): `cClassTrib` (ou `itens[].cclasstrib`), `CST` opcional (3 primeiros dígitos do cClassTrib), `pRedIBS` e `pRedCBS` (CST 200: redução do cClassTrib), `pDif` (CST 510).
+
+No item, `origem` completa `regra.icms.orig` e `valor_pauta_st` (por unidade, do produto) calcula o ST nas modalidades 0 (preço tabelado) e 5 (pauta): base = quantidade × pauta. Os campos `perfil`, `perfil_icms`, `perfil_piscofins`, `operacao.codigo` e `operacao.tipo_pessoa` da antiga matriz de tributação foram retirados e são recusados com 422.
 
 Suportados: CST 00, 02, 10, 20, 30, 40, 41, 50, 51, 60, 61, 70, 90 e CSOSN 101, 102, 103, 201, 202, 203, 300, 400, 500, 900. `modBCST` 4 (MVA) e 6 (valor da operação) são calculados; nas demais modalidades informe `vBCST`.
 
@@ -109,79 +111,42 @@ Qualquer valor final informado na regra (`vBC`, `vICMS`, `vBCST`, `vICMSST`, `vI
 - `?detalhar=1` acrescenta `memoria_calculo` (fórmulas e valores intermediários) a cada item.
 - Erros de regra retornam 422 no formato padrão (`erro.detalhes[].campo`, ex.: `itens[0].regra.icms.pICMSST`).
 
-## Matriz de regras da empresa (`/api/v1/tributacao`)
+## IBS/CBS (Reforma Tributária)
 
-Mesmo desenho da "Listagem de Tributação do ICMS" do ClickPDV. Cadastro no Portal Fiscal (no painel administrativo, botão **Abrir Portal Fiscal** da empresa) ou pela API; leitura com qualquer credencial da empresa, alteração só pelo proprietário (chaves de API contam como proprietário). Vale para homologação e produção.
-
-| Cadastro | Chave | Conteúdo |
-|---|---|---|
-| Perfil (vale para ICMS e PIS/COFINS) | código automático (ex.: `1` Produto tributado, `2` Produto substituição) | nome |
-| Operação | código (ex.: `VENDA`) | nome — vira a natureza da operação da nota quando ela não é informada |
-| Regra de ICMS | perfil × operação × UF de destino × tipo de pessoa (F, J, E) | descrição (só identificação), CFOP, CST/CSOSN e parâmetros do CST, IPI (CST, enquadramento, alíquota) |
-| Regra de PIS/COFINS | perfil × operação | descrição, CST e alíquota (ou valor por unidade no CST 03) de PIS e de COFINS |
-
-A regra guarda só parâmetros. Os campos aceitos dependem do CST (`GET /tributacao` devolve `campos_por_cst` e `obrigatorios_por_cst`); campo que não se aplica é recusado. Ex.: CST 20 exige `pRedBC`; CST 10/70 exigem `pICMSST` (e `pMVAST` com modalidade 4); CST 51 aceita `pDif`; CSOSN 101/201 exigem `pCredSN`; CST 60/61/02 e CSOSN 500 não têm parâmetros (ST retido e ad rem vêm do produto, na venda).
-
-| Rota | Uso |
-|---|---|
-| `GET /tributacao` | perfis, operações, campos por CST, UFs |
-| `POST /tributacao/perfis` | `{nome}`: inclui com código automático (maior código numérico + 1); 201 com o perfil |
-| `PUT`/`DELETE /tributacao/perfis/{codigo}` | `{nome}`; perfil com regras não é excluído (409). O mesmo perfil vale para ICMS e PIS/COFINS (`tipo` antigo é ignorado) |
-| `POST /tributacao/operacoes` | `{nome}`: inclui com código automático; 201 |
-| `PUT`/`DELETE /tributacao/operacoes/{codigo}` | `{nome}`; operação com regras não é excluída (409) |
-| `POST /tributacao/regras-piscofins/copiar` | `{origem:{perfil, operacao}, destino:{perfis?, operacoes?}, sobrescrever?}` → `{criadas, sobrescritas, ignoradas}` |
-| `POST /tributacao/regras-iss` | inclui regra de ISS com código automático; 201 |
-| `GET /tributacao/regras-icms?perfil=&operacao=&uf=&tipo_pessoa=` | lista filtrada para a grade do ERP: `total` e cada regra com `perfil_nome`, `operacao_nome`, `tipo_pessoa_descricao`, `cst`, `cst_descricao` |
-| `GET /tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}` | detalhe: a regra, os nomes e `campos` (`grupo`, `campo`, `rotulo`, `valor`, `valor_descricao`) para mostrar ao usuário; 404 se não existir |
-| `PUT`/`DELETE /tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}` | `{descricao, cfop, icms:{CST, ...}, ipi?}` |
-| `POST /tributacao/regras-icms/copiar` | `{origem:{perfil, operacao, uf, tipo_pessoa?}, destino:{ufs?, tipos_pessoa?, perfis?, operacoes?}, sobrescrever?}`; `["*"]` = todos; sem `tipo_pessoa` na origem copia as regras de todos os tipos daquela UF; até 3.000 regras; devolve criadas, substituídas e ignoradas (já existiam) |
-| `GET /tributacao/regras-piscofins?perfil=&operacao=` | lista com `total`, nomes e `pis_cst_descricao` / `cofins_cst_descricao` |
-| `GET /tributacao/regras-piscofins/{perfil}/{operacao}` | detalhe com `campos` rotulados |
-| `PUT`/`DELETE /tributacao/regras-piscofins/{perfil}/{operacao}` | `{descricao, pis:{CST, pPIS|vAliqProd}, cofins:{...}}` |
-| `GET /tributacao/cclasstrib?cst=&busca=` | tabela local de cClassTrib (somente leitura) |
-| `POST /tributacao/importar` | carga inicial: `{perfis, operacoes, regras_icms, regras_piscofins, sobrescrever?}`; valida tudo antes de gravar (tudo ou nada), até 20.000 regras |
-
-### IBS/CBS (Reforma Tributária)
-
-A API calcula o IBS (UF e município) e a CBS de cada item da NF-e e da NFC-e (NT 2025.002-RTC) e monta os grupos no XML. Não se aplica à NFS-e. Não há regra de IBS/CBS na matriz: tudo vem do cClassTrib do produto e da tabela local.
+A API calcula o IBS (UF e município) e a CBS de cada item da NF-e e da NFC-e (NT 2025.002-RTC) e monta os grupos no XML. Não se aplica à NFS-e. Tudo vem do ERP no JSON; a API não mantém tabela de cClassTrib nem de alíquotas.
 
 O sistema informa:
 
-- `itens[].cclasstrib`: o cClassTrib do produto (6 dígitos), escolhido pela aplicação a partir do NCM, dos anexos da LC 214/2025 e dos fatos da operação. O CST, a redução de alíquota (pRedIBS, pRedCBS), a vigência e se o código vale na NF-e/NFC-e vêm da **tabela local de cClassTrib**.
-- `regra.ibscbs.pDif` só no CST 510 (diferimento); `regra.ibscbs.cClassTrib` também é aceito no lugar de `cclasstrib`.
-
-As **alíquotas** (IBS UF, IBS município, CBS) vêm da **tabela de alíquotas da API**, mantida pelo administrador:
-
-- Cada linha tem vigência (início e fim opcional) e abrangência nacional, por UF ou por município (código IBGE; a API traz a lista dos 5.571 municípios do IBGE).
-- A busca usa a data da operação e o município de destino (destinatário da nota); sem destinatário com endereço, o município do emitente. Prioridade: município, depois UF, depois nacional; na mesma abrangência, o início mais recente.
-- Sem linha vigente em 2026, valem as alíquotas de teste da LC 214/2025 (0,10% / 0% / 0,90%). Em outros anos sem linha, o cálculo é recusado.
-- Se o JSON trouxer `aliquotas_ibscbs` (na emissão, `calculo_tributos.aliquotas_ibscbs`), elas são usadas no lugar da tabela.
-- O resultado traz `ibscbs` com a fotografia do que foi usado: alíquotas, origem (`informada`, `tabela` com id e vigência, ou `lei`), município e versão da tabela de cClassTrib.
+- `itens[].cclasstrib` (ou `regra.ibscbs.cClassTrib`): o cClassTrib do produto (6 dígitos), escolhido pela aplicação a partir do NCM, dos anexos da LC 214/2025 e dos fatos da operação. O CST são os 3 primeiros dígitos.
+- `regra.ibscbs.pRedIBS` e `pRedCBS` no CST 200 (percentual de redução do cClassTrib, da tabela oficial) e `regra.ibscbs.pDif` no CST 510 (diferimento).
+- As **alíquotas** (IBS UF, IBS município, CBS) em `operacao.aliquotas_ibscbs` (na emissão, `calculo_tributos.aliquotas_ibscbs`). Sem elas, o cálculo do IBS/CBS é recusado com 422.
+- O resultado traz `ibscbs` com a fotografia do que foi usado: alíquotas (origem `informada`) e município.
 
 **Crédito presumido da operação** (grupo `gCredPresOper`): o ERP manda o `cCredPres` (tabela cCredPres, 1 a 99) e o percentual do IBS e/ou da CBS, que no ClickPDV ficam no cadastro da natureza. Envie em `operacao.credito_presumido` (na emissão, `calculo_tributos.credito_presumido`); `itens[].credito_presumido` troca ou anula (`null`) no item.
 
 - Base (`vBCCredPres`) = a mesma base do IBS/CBS, também nos CST sem grupo de valores (ex.: 410 do produtor rural). Valor = base × pCredPres, com 2 casas; `gIBSCredPres` e `gCBSCredPres` só saem para o percentual informado.
 - Os totais vão para `IBSCBSTot.gIBS.vCredPres` e `gCBS.vCredPres`. O crédito não altera vIBS, vCBS, vItem nem vNF.
-- Se a tabela de cClassTrib diz que o código não admite o grupo (`ind_gCredPresOper` = 0): informado no item → 422; vindo da operação → o item fica sem o grupo e recebe alerta.
+- A API não confere se o cClassTrib admite o grupo (`ind_gCredPresOper`): o ERP só envia o crédito presumido nos itens que o admitem.
 - A API não confere o cCredPres contra a tabela cCredPres (indicadores de IBS/CBS e vigência por tributo): a SEFAZ rejeita (regras 1050–1055). A condição suspensiva (`vCredPresCondSus`, só a partir de 2033) não é calculada.
 
 Regras:
 
 - **Quem:** regime normal (CRT 3). Simples Nacional e MEI (CRT 1, 2, 4) estão dispensados em 2026 e o leiaute deles ainda não foi publicado: o cClassTrib é ignorado com alerta. Na mesma nota, todos os itens têm cClassTrib ou nenhum.
 - **Base (regra UB16-10):** vProd + frete + seguro + outras − desconto − PIS − COFINS − ICMS − FCP − ICMS monofásico.
-- **CST 200:** alíquota efetiva = alíquota × (1 − redução da tabela), 4 casas, no grupo `gRed`. Quando a tabela muda a redução, o cálculo acompanha sem alterar nada no sistema.
+- **CST 200:** alíquota efetiva = alíquota × (1 − redução informada em `pRedIBS`/`pRedCBS`), 4 casas, no grupo `gRed`.
 - **CST 510:** `gDif`; o diferido é base × alíquota × pDif e o valor do tributo é o calculado menos o diferido.
 - **CST 400 e 410:** só CST e cClassTrib, sem valores.
 - **CST calculados:** 000, 200, 400, 410 e 510. Os demais (alíquota fixa, suspensão, monofasia, transferência de crédito, ajustes) vão no modo informado (`docs/RTC-INFORMADA-DELPHI.md`).
-- **cClassTrib** inexistente na tabela, de outro CST, fora da vigência (`operacao.data`) ou não permitido no modelo (indNFe/indNFCe) é recusado com 422.
+- **cClassTrib** sem 6 dígitos ou de outro CST é recusado com 422. Existência, vigência e permissão no modelo (indNFe/indNFCe) são conferidas pela SEFAZ.
 - **vItem e vNFTot:** vItem = vProd − desconto − desoneração deduzida + ICMS ST + FCP ST + frete + seguro + outras + IPI; em 2026 sem IBS/CBS, a partir de 2027 com IBS/CBS. vNFTot = soma dos vItem. O vNF nunca inclui IBS/CBS.
 - Arredondamento: valores com 2 casas (ABNT). A SEFAZ aceita diferença de R$ 0,01.
 
 ```json
 {
-  "operacao": { "codigo": "VENDA", "municipio_destino": "1302603" },
-  "itens": [ { "quantidade": 2, "valor_unitario": 5.49, "desconto": 0.50, "origem": 0,
-               "perfil": "2", "cclasstrib": "000001" } ]
+  "operacao": { "municipio_destino": "1302603", "aliquotas_ibscbs": { "pIBSUF": 0.1, "pIBSMun": 0, "pCBS": 0.9 } },
+  "itens": [ { "quantidade": 2, "valor_unitario": 5.49, "desconto": 0.50, "origem": 0, "cclasstrib": "000001",
+               "regra": { "cfop": "5405", "icms": { "CST": "10", "pICMS": 20, "pMVAST": 40, "pICMSST": 20 },
+                          "pis": { "CST": "01", "pPIS": 1.65 }, "cofins": { "CST": "01", "pCOFINS": 7.6 } } } ]
 }
 ```
 
@@ -196,83 +161,20 @@ Resultado do item (ICMS 2,10, ST 0,83, PIS 0,17, COFINS 0,80):
 
 Na emissão, o cálculo vira `itens[].impostos.ibscbs`, `valor_item` e `reforma_tributaria.totais` (`IBSCBSTot`, `vNFTot`) e passa pelo mesmo caminho do modo informado: XML montado e validado no XSD PL_010f. Se a nota já trouxer a RTC informada pelo sistema, ela prevalece.
 
-#### Tabelas globais (administrador da API)
+## NFS-e
 
-No painel administrativo, página **Reforma tributária**, ou pelas rotas de administrador:
-
-| Rota | Uso |
-|---|---|
-| `GET /api/v1/admin/rtc/aliquotas?data=&municipio=` | linhas da tabela; com `data` (e `municipio`) mostra também a vigente que o cálculo usaria |
-| `POST /api/v1/admin/rtc/aliquotas` · `PUT`/`DELETE .../{id}` | `{abrangencia: nacional/uf/municipio, uf?, codigo_municipio?, inicio, fim?, pIBSUF, pIBSMun, pCBS, descricao?}`; vigência sobreposta para o mesmo local é recusada (409) |
-| `GET /api/v1/admin/rtc/municipios?uf=&busca=` | municípios do IBGE |
-| `GET`/`POST /api/v1/admin/rtc/cclasstrib` | consulta e importação da tabela de cClassTrib (`{conteudo, versao?}`, texto do CSV ou JSON) |
-
-Tabela de cClassTrib pela linha de comando:
-
-```bash
-php bin/cclasstrib.php                                  # versão, data e total
-php bin/cclasstrib.php importar cClassTrib.csv IT-1.70  # planilha oficial (aba cClassTrib salva como CSV) ou JSON
-php bin/cclasstrib.php svrs certificado.pfx             # API Conformidade Fácil da SVRS (certificado ICP-Brasil)
-```
-
-A importação aceita as colunas da planilha do Informe Técnico 2025.002 (`CST-IBS/CBS`, `cClassTrib`, `Nome cClassTrib`, `Tipo de Alíquota`, `pRedIBS`, `pRedCBS`, `dIniVig`, `dFimVig`, `indNFe`, `indNFCe`), com `;` ou `,`, em UTF-8 ou Windows-1252. Substitui a tabela inteira (a anterior fica guardada) e é recusada por completo se alguma linha for inválida. Consulta: `GET /api/v1/tributacao/cclasstrib?cst=&busca=` (para o ERP montar a escolha do cClassTrib no cadastro do produto).
-
-### Regras de ISS (NFS-e)
-
-Equivalem ao IMPOSTO_ISS do ClickPDV: cada regra tem um código escolhido pela empresa e é usada na emissão da NFS-e (`regra_iss`, ver `docs/NFSE.md`). Não dependem de perfil nem de operação.
-
-| Rota | Uso |
-|---|---|
-| `GET /tributacao/regras-iss?busca=` | lista (busca por código, descrição ou código de tributação nacional): `total` e cada regra com `servico_descricao`, `item_lc116`, `tipo_pessoa_descricao`, `retencao_federais_descricao` |
-| `POST /tributacao/regras-iss/copiar` | `{origem, destino?, descricao?, sobrescrever?}` (sem destino: código automático): cria uma regra nova com os dados da origem (descrição padrão "Cópia de …"); 409 se o destino existir sem `sobrescrever: true`; 201 com a regra criada |
-| `GET /tributacao/regras-iss/{codigo}` | detalhe com `campos` rotulados (descrição do serviço nacional e da NBS) |
-| `PUT`/`DELETE /tributacao/regras-iss/{codigo}` | `{descricao, tipo_pessoa?, servico:{codigo_tributacao_nacional, nbs?, codigo_tributacao_municipal?, codigo_interno?}, iss?:{aliquota_iss?}, federais?:{cst_pis_cofins, aliquota_pis?, aliquota_cofins?, aliquota_irrf?, aliquota_csll?, tipo_retencao}, ibs_cbs?:{indicador_operacao?, classificacao_tributaria?, percentual_diferimento?, operacao_onerosa, servico_exterior}}` |
-
-Campos que vieram da tela do ClickPDV (`frmCadImpostoIss`, tabela `IMPOSTO_ISS`):
-
-| Regra (API) | ClickPDV | Uso na NFS-e |
-|---|---|---|
-| `tipo_pessoa` (F/J) | `ID_TIPO_PESSOA_TRIBUTACAO` | identificação: o ERP escolhe a regra pelo tomador |
-| `federais.cst_pis_cofins`, `aliquota_pis`, `aliquota_cofins` | `ID_CST_ISS`, `ALIQ_PIS`, `ALIQ_COFINS` | grupo `piscofins`: base = serviço − desconto incondicionado; vPis e vCofins com 2 casas |
-| `federais.aliquota_irrf` | `ALIQ_IRRF` | `vRetIRRF` = base × alíquota |
-| `federais.aliquota_csll`, `tipo_retencao` (0–9) | `ALIQ_CSLL`, `ID_TIPO_RETENCAO_PISCOFINS_CSLL` | `tpRetPisCofins`; `vRetCSLL` = PIS + COFINS + CSLL **retidos** conforme o tipo (NT 007) |
-| `ibs_cbs.indicador_operacao`, `classificacao_tributaria`, `percentual_diferimento` | `INDOP`, `CCLASSTRIB`, `ALIQ_DIFER` | completam o `ibs_cbs` informado na nota (CST = 3 primeiros dígitos do cClassTrib; diferimento igual para UF, município e CBS) |
-| `ibs_cbs.operacao_onerosa`, `servico_exterior` | `PS_ONEROSA`, `ADQ_EXTERIOR` | cadastro para o ERP escolher o indicador da operação; não vão para a DPS |
-
-O CST segue a NFS-e Nacional (00 a 09, 49, 50–56, 60–67, 70–75, 98, 99), com as descrições oficiais. A tabela `CST_ISS` do ClickPDV usa os mesmos códigos 00–09, mas com descrições diferentes em três deles: 00 e 07 aparecem como "sem incidência" e 09 como "outras operações de saída". Na NFS-e, 00 = nenhum, 07 = isenta, 08 = sem incidência, 09 = suspensão e 49 = outras operações de saída. Na importação das regras do ClickPDV, conferir esses códigos.
-
-Se a nota trouxer `tributos_federais`, vale o informado. O Delphi somava PIS e COFINS no `vRetCSLL` mesmo quando o tipo de retenção dizia que não eram retidos; a API soma só os retidos. Crédito presumido não existe na NFS-e (decisão de 10/11).
-
-- Tributação, retenção, imunidade e suspensão do ISSQN **não** ficam na regra: vêm do cadastro da empresa (`PUT /nfse/config`). Enviá-los na regra dá 422.
-- `aliquota_iss`: 0 a 5%, só em operação tributável. Se o regime do prestador ou o convênio do município não permitir informar a alíquota, a emissão a omite na DPS (com aviso).
-
-```json
-{
-  "descricao": "Licenciamento com retenção",
-  "servico": { "codigo_tributacao_nacional": "010501", "nbs": "115022000" },
-  "iss": { "aliquota_iss": 5 }
-}
-```
-
-### Usando os perfis no cálculo
-
-O item informa `perfil` (um só, vale para ICMS e PIS/COFINS) e `origem` (do produto); `perfil_icms`/`perfil_piscofins` ainda são aceitos para trocar o perfil de um dos dois; a operação informa `codigo` e `tipo_pessoa`. A API busca a regra de ICMS pela UF de destino (na NFC-e, a UF do emitente) e devolve em cada item `regra_aplicada` (qual regra foi usada e o que foi sobreposto).
-
-```json
-{
-  "operacao": { "codigo": "VENDA", "tipo_pessoa": "F" },
-  "itens": [ { "quantidade": 2, "valor_unitario": 5.49, "origem": 0, "perfil": "2" } ]
-}
-```
-
-- `regra` no item continua aceita e sobrepõe campo a campo a regra da matriz (ex.: `"regra": {"icms": {"pICMS": 18}}`). Informar outro CST/CSOSN substitui o grupo inteiro.
-- Sem regra para a combinação: 422 em `itens[i].perfil_icms`, com perfil, operação, UF e pessoa na mensagem.
-- `valor_pauta_st` no item (por unidade, do produto) calcula o ST nas modalidades 0 (preço tabelado) e 5 (pauta): base = quantidade × pauta.
-- Na emissão, use `calculo_tributos.operacao`; o tipo de pessoa vem do destinatário (CNPJ → J, CPF ou sem destinatário → F), ou de `calculo_tributos.tipo_pessoa`.
+A NFS-e não usa este motor. Os códigos do serviço, a alíquota do ISS e os tributos federais vêm no JSON de `POST /nfse`: `federais` com os percentuais (a API calcula o grupo `tributos_federais` no envio) ou `tributos_federais` com os valores calculados pelo ERP. Ver `docs/NFSE.md`.
 
 ## Cálculo na emissão (`POST /nfe` e `/pdv/nfce`)
 
-Envie o perfil (`perfil`, `origem`) ou a `regra` no item, no lugar de `impostos`. A API calcula com este mesmo motor, preenche `impostos` e `valor_aproximado_tributos` de cada item e segue a emissão normal (validação, numeração, assinatura, transmissão).
+Os códigos fiscais vêm no JSON da nota, em um de dois modos (`calculo_tributos.modo`):
+
+| Modo | Itens trazem | O que a API faz |
+|---|---|---|
+| `api` | `regra` (cfop, icms, pis, cofins, ipi, ibscbs, ibpt) | calcula no envio com este mesmo motor, preenche `impostos` e `valor_aproximado_tributos` de cada item e segue a emissão normal (validação, numeração, assinatura, transmissão) |
+| `erp` | `impostos` com as tags já calculadas pelo ERP | não recalcula nada: as tags vão para o XML como vieram |
+
+Sem `modo`, ele é deduzido dos itens (com `regra` → `api`; só com `impostos` → `erp`). Informar o modo deixa explícito para a API o que o ERP mandou: `erp` com algum item com `regra`, ou `api` com algum item sem `regra`, é recusado com 422.
 
 ```json
 {
@@ -299,7 +201,7 @@ Envie o perfil (`perfil`, `origem`) ou a `regra` no item, no lugar de `impostos`
 - **CFOP**: pode ficar só na regra; se vier no item e na regra, precisam ser iguais.
 - **Pagamento**: o total só é conhecido depois do cálculo (ST, IPI, desoneração). Um pagamento único sem `valor` recebe o `vNF` calculado. Com mais de um pagamento, informe os valores (use a pré-visualização).
 - **Não misture**: com cálculo pela API, todos os itens levam `regra`. Em `impostos` só podem ir junto `ibscbs`/`is` (Reforma Tributária informada).
-- **`calculo_tributos`**: `operacao` (código da matriz, obrigatório com perfis), `tipo_pessoa`, `calculo_id`, `excluir_icms_base_piscofins`. Sem `natureza_operacao` na nota, vale o nome da operação.
+- **`calculo_tributos`**: `modo` (`api` ou `erp`), `calculo_id`, `excluir_icms_base_piscofins`, `aliquotas_ibscbs`, `credito_presumido`. No modo `erp` só vale `modo`. `natureza_operacao` é obrigatória na nota.
 - **Pré-visualização**: `POST /nfe?dry_run=1` devolve o cálculo completo em `calculo_tributos` (mesmo formato de `/tributos/calcular`), com o XML montado. Para a NFC-e do PDV, use `/tributos/calcular` com `"modelo": 65`.
 - **`calculo_id` na emissão**: se o cálculo de agora for diferente do pré-visualizado (regra, valores ou alíquotas mudaram), a emissão é recusada com **409 `calculo_divergente`** antes de numerar, e a `Idempotency-Key` não é consumida. A mensagem traz o id calculado agora.
 - **Ajuste manual na emissão**: alterar parâmetro da regra (CST, alíquota, redução, MVA) é livre. Informar valor final (base ou valor de imposto) exige papel **proprietário ou fiscal**; caso contrário, **403 `ajuste_manual_negado`**. Chaves de API contam como proprietário. Todo ajuste vai para o audit log (`tributos.ajuste_manual`).

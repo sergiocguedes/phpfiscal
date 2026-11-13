@@ -71,7 +71,7 @@ function renderRecovery(reset) {
   form('recover', async data => { const result=await api(reset?'/auth/redefinir-senha':'/auth/esqueci-senha','POST',data); notice(result.mensagem); });
 }
 function shell(path) {
-  const nav=[['/empresas','Todas as empresas'],...(session.usuario?.acesso_central==='admin'?[['/usuarios','Usuários permitidos'],['/administracao','Administração e arquivos'],['/reforma','Reforma tributária']]:[]),['/perfil','Perfil'],['/mfa','Segurança']];
+  const nav=[['/empresas','Todas as empresas'],...(session.usuario?.acesso_central==='admin'?[['/usuarios','Usuários permitidos'],['/administracao','Administração e arquivos']]:[]),['/perfil','Perfil'],['/mfa','Segurança']];
   const current=companies.find(c=>c.id===selectedCompany);
   app.innerHTML=`<aside><p class="company">API Fiscal</p><p>${esc(session.usuario?.nome)}</p><p class="muted">${current?esc(current.nome)+' · '+companyEnvironments(current)+(current.ativa?'':' · Inativa'):'Administração de empresas'}</p><nav>${nav.map(([href,label])=>`<a href="${href}" data-route class="${path===href||(href==='/empresas'&&path==='/empresa')?'active':''}">${label}</a>`).join('')}<button type="button" class="secondary" id="logout">Sair</button></nav></aside><main id="content"></main>`;
   document.querySelector('#logout').onclick=async()=>{try{await api('/auth/logout','POST',{});session=null;selectedCompany='';sessionStorage.removeItem('empresa_selecionada');await go('/login');}catch(e){notice(e.message,true);}};
@@ -140,7 +140,7 @@ async function render() {
   try {
     if(session.mfa_cadastro_obrigatorio && path!=='/mfa')return go('/mfa');
     if(path==='/empresa'&&!selectedCompany)return companyPicker(main);
-    await ({'/':allCompanies,'/login':allCompanies,'/empresas':allCompanies,'/usuarios':allowedUsers,'/administracao':administration,'/reforma':reformaTributaria,'/empresa':companySettings,'/perfil':profile,'/mfa':security}[path] || allCompanies)(main);
+    await ({'/':allCompanies,'/login':allCompanies,'/empresas':allCompanies,'/usuarios':allowedUsers,'/administracao':administration,'/empresa':companySettings,'/perfil':profile,'/mfa':security}[path] || allCompanies)(main);
   } catch(error) { main.innerHTML='<h1>Não foi possível carregar</h1><p class="lead">Confira sua conexão e o acesso à empresa.</p>';notice(error.message,true); }
 }
 function companyPicker(main){
@@ -195,30 +195,5 @@ async function administration(main){
   form('admin-key',async d=>{const k=await api('/admin/chaves','POST',d);await administration(main);document.querySelector('#new-admin-key').innerHTML=`<label>Copie agora a chave administrativa<textarea readonly>${esc(k.chave)}</textarea></label>`;});
   main.querySelectorAll('[data-admin-revoke]').forEach(b=>b.onclick=async()=>{try{await api('/admin/chaves/'+b.dataset.adminRevoke,'DELETE');await administration(main);}catch(e){notice(e.message,true);}});
 }
-// ---------------------------------------------------------------- Reforma tributária: tabelas globais (administrador)
-async function reformaTributaria(main){
-  const [al,cc]=await Promise.all([api('/admin/rtc/aliquotas'),api('/admin/rtc/cclasstrib?cst=200')]);if(!main.isConnected)return;
-  const t=cc.tabela,ufs=['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
-  const local=l=>l.abrangencia==='nacional'?'Nacional':l.abrangencia==='uf'?'UF '+esc(l.uf):esc(l.municipio||'')+' / '+esc(l.uf)+' ('+esc(l.codigo_municipio)+')';
-  const f=v=>String(v).replace('.',',');
-  main.innerHTML=`<h1>Reforma tributária</h1><p class="lead">Tabelas globais usadas no cálculo do IBS/CBS de todas as empresas. Alíquotas enviadas no JSON da venda têm prioridade sobre esta tabela.</p>
-  <section class="card"><h2>Alíquotas de IBS e CBS</h2><p class="muted">Busca pela data da emissão e pelo município de destino (sem destinatário, o do emitente): município, depois UF, depois nacional. Sem linha vigente em 2026 valem as alíquotas de teste da LC 214/2025 (0,10% / 0% / 0,90%).</p>
-  <table><thead><tr><th>Local</th><th>Vigência</th><th>IBS UF</th><th>IBS mun.</th><th>CBS</th><th>Descrição</th><th></th></tr></thead><tbody>${al.linhas.map(l=>`<tr><td>${local(l)}</td><td>${esc(l.inicio)} a ${esc(l.fim||'sem fim')}</td><td>${f(l.pIBSUF)}%</td><td>${f(l.pIBSMun)}%</td><td>${f(l.pCBS)}%</td><td>${esc(l.descricao||'')}</td><td><button type="button" class="danger" data-del-aliq="${esc(l.id)}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="7">Nenhuma linha cadastrada (vale a lei de 2026).</td></tr>'}</tbody></table>
-  <form id="rtc-aliq"><h3>Incluir alíquota</h3><div class="grid">${select('abrangencia','Abrangência','nacional',[['nacional','Nacional'],['uf','UF'],['municipio','Município']])}${select('uf','UF','AM',ufs.map(u=>[u,u]))}<label>Município<input aria-label="Município" name="municipio" list="rtc-mun" placeholder="Digite o nome e escolha" autocomplete="off"></label><datalist id="rtc-mun"></datalist>${input('inicio','Início da vigência','','date','required')}${input('fim','Fim da vigência (opcional)','','date')}${input('pIBSUF','IBS UF (%)','','text','required inputmode="decimal"')}${input('pIBSMun','IBS município (%)','','text','required inputmode="decimal"')}${input('pCBS','CBS (%)','','text','required inputmode="decimal"')}${input('descricao','Descrição','','text','maxlength="120"')}</div><div class="actions"><button type="submit">Incluir alíquota</button></div></form></section>
-  <section class="card"><h2>Tabela de cClassTrib</h2><p>${t.carregada?`Versão <b>${esc(t.versao||'-')}</b> · ${t.total} códigos · atualizada em ${esc(new Date(t.atualizado_em).toLocaleString('pt-BR'))} (${esc(t.origem)})`:'<b>Tabela não carregada:</b> o cálculo do IBS/CBS é recusado até a importação.'}</p>
-  <p class="muted">Envie a planilha oficial do Informe Técnico 2025.002 (aba cClassTrib salva como CSV) ou o JSON da API Conformidade Fácil. A tabela é substituída inteira; se alguma linha estiver inválida, nada muda.</p>
-  <form id="rtc-cc"><div class="grid"><label>Arquivo CSV ou JSON<input aria-label="Arquivo" name="arquivo" type="file" accept=".csv,.json,.txt" required></label>${input('versao','Versão (ex.: IT-1.70)','','text','maxlength="40"')}</div><div class="actions"><button type="submit">Importar tabela</button></div></form>
-  ${cc.itens.length?`<h3>Códigos com redução (CST 200)</h3><table><thead><tr><th>cClassTrib</th><th>Nome</th><th>Redução IBS</th><th>Redução CBS</th><th>NF-e</th><th>NFC-e</th></tr></thead><tbody>${cc.itens.map(i=>`<tr><td>${esc(i.cClassTrib)}</td><td>${esc(i.nome)}</td><td>${f(i.pRedIBS)}%</td><td>${f(i.pRedCBS)}%</td><td>${i.indNFe===false?'Não':'Sim'}</td><td>${i.indNFCe===false?'Não':'Sim'}</td></tr>`).join('')}</tbody></table>`:''}</section>`;
-  const fa=main.querySelector('#rtc-aliq'),mun=fa.querySelector('[name=municipio]');let tm;
-  const vis=()=>{fa.querySelector('[name=uf]').closest('label').hidden=fa.abrangencia.value==='nacional';mun.closest('label').hidden=fa.abrangencia.value!=='municipio';};
-  fa.abrangencia.onchange=vis;vis();
-  mun.oninput=()=>{clearTimeout(tm);tm=setTimeout(async()=>{if(mun.value.length<2||/^\d{7}/.test(mun.value))return;const r=await api(`/admin/rtc/municipios?uf=${fa.uf.value}&busca=${encodeURIComponent(mun.value)}`);main.querySelector('#rtc-mun').innerHTML=r.municipios.map(m=>`<option value="${m.codigo} - ${esc(m.nome)}">`).join('');},250);};
-  form('rtc-aliq',async d=>{const b={abrangencia:d.abrangencia,inicio:d.inicio,...(d.fim?{fim:d.fim}:{}),pIBSUF:num(d.pIBSUF),pIBSMun:num(d.pIBSMun),pCBS:num(d.pCBS),...(d.descricao?{descricao:d.descricao}:{})};
-    if(d.abrangencia==='uf')b.uf=d.uf;if(d.abrangencia==='municipio')b.codigo_municipio=(d.municipio.match(/^\d{7}/)||[''])[0];
-    await api('/admin/rtc/aliquotas','POST',b);await reformaTributaria(main);notice('Alíquota incluída.');});
-  main.querySelectorAll('[data-del-aliq]').forEach(b=>b.onclick=async()=>{if(!confirm('Excluir esta linha de alíquota?'))return;try{await api('/admin/rtc/aliquotas/'+b.dataset.delAliq,'DELETE');await reformaTributaria(main);notice('Alíquota excluída.');}catch(e){notice(e.message,true);}});
-  form('rtc-cc',async d=>{const file=main.querySelector('#rtc-cc [name=arquivo]').files[0];if(!file)throw new Error('Escolha o arquivo');const buf=await file.arrayBuffer();let txt=new TextDecoder('utf-8',{fatal:false}).decode(buf);if(txt.includes('�'))txt=new TextDecoder('windows-1252').decode(buf);
-    const r=await api('/admin/rtc/cclasstrib','POST',{conteudo:txt,...(d.versao?{versao:d.versao}:{})});await reformaTributaria(main);notice(`Tabela importada: ${r.total} códigos (${r.incluidos} incluídos, ${r.alterados} alterados, ${r.removidos} removidos).`);});
-}
 (async()=>{try{session=await api('/auth/sessao');}catch{}await render();})();
-// Tributação (perfis, operações e regras de ICMS, PIS/COFINS e ISS) fica só no Portal Fiscal: botão "Abrir Portal Fiscal".
+// Tributação: os códigos fiscais vêm no JSON de cada nota enviado pelo ERP (sem cadastro de regras na API).

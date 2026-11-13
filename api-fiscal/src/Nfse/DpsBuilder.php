@@ -49,13 +49,14 @@ final class DpsBuilder
     {
         $e = new Errors();
         $p = ['avisos' => []];
-        // regra_iss: código da regra de ISS da empresa; preenche servico e valores (o JSON informado prevalece)
-        $in = \App\Tributos\RegrasIss::aplicar($in, $e);
-        if (isset($in['_regra_iss'])) {
-            $p['regra_iss'] = $in['_regra_iss'];
-            unset($in['_regra_iss']);
+        // códigos fiscais vêm no JSON do ERP (servico, valores.aliquota_iss, federais/tributos_federais, ibs_cbs)
+        if (array_key_exists('regra_iss', $in)) {
+            $e->add('regra_iss', 'Regras de ISS foram retiradas da API: envie no JSON servico (códigos), valores.aliquota_iss e federais (percentuais) ou tributos_federais (valores)');
+            unset($in['regra_iss']);
         }
-        // padrões de ISSQN do cadastro da empresa: só preenchem o que a nota e a regra não informaram
+        // federais: percentuais de PIS/COFINS/IRRF/CSLL; a API calcula o grupo tributos_federais no envio
+        $in = TributosFederaisCalculo::aplicar($in, $e);
+        // padrões de ISSQN do cadastro da empresa: só preenchem o que a nota não informou
         if (is_array($in['valores'] ?? null)) {
             $vv = $in['valores'];
             $vv['tributacao_iss'] ??= $cfg['tributacao_iss'] ?? 1;
@@ -443,7 +444,7 @@ final class DpsBuilder
         $prest = self::el($dom, $inf, 'prest');
         self::el($dom, $prest, 'CNPJ', $cnpj);
         if (!empty($cfg['inscricao_municipal'])) {
-            self::el($dom, $prest, 'IM', (string) $cfg['inscricao_municipal']);
+            self::el($dom, $prest, 'IM', self::imPrestador((string) $cfg['inscricao_municipal'], (int) $cfg['ambiente']));
         }
         $rt = self::el($dom, $prest, 'regTrib');
         self::el($dom, $rt, 'opSimpNac', (string) (int) $cfg['opcao_simples_nacional']);
@@ -569,6 +570,15 @@ final class DpsBuilder
      * Pedido de registro do evento de cancelamento (e101101), não assinado.
      * Id = "PRE" + chave (50) + código do evento (101101).
      */
+    /**
+     * IM do prestador na DPS. Em homologação (produção restrita, tpAmb 2) vai completada com zeros
+     * à esquerda até 15 posições (tamanho máximo do campo); em produção vai como cadastrada.
+     */
+    private static function imPrestador(string $im, int $ambiente): string
+    {
+        return $ambiente === 2 ? str_pad($im, 15, '0', STR_PAD_LEFT) : $im;
+    }
+
     public static function pedidoCancelamento(string $chave, string $cnpj, int $ambiente, int $codigo, string $motivo, ?int $agora = null): string
     {
         $dom = new \DOMDocument('1.0', 'UTF-8');

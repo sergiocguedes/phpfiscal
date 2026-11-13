@@ -3,7 +3,7 @@
   "info": {
     "title": "API Fiscal — NF-e, NFC-e e NFS-e",
     "version": "3.2.0-api",
-    "description": "API fiscal central. Ambientes independentes por empresa: ambiente_nfe, ambiente_nfce e ambiente_nfse (1 produção, 2 homologação), sem trava global ALLOW_PRODUCAO. Responsável técnico do desenvolvedor em /api/v1/admin/config. Configuração do sistema (URL, sessões, SMTP, limites, NFS-e) cifrada no PostgreSQL em /api/v1/admin/configuracao, somente por sessão de administrador central. NFS-e recebe o serviço completo no JSON; não há catálogo de serviços. RTC recebe CST/cClassTrib, valores e totais no modo informado, sem tabelas tributárias locais nem cálculo de IBS/CBS. Mantida validação estrutural XSD. Credenciais centrais usam X-Empresa-Id."
+    "description": "API fiscal central. Ambientes independentes por empresa: ambiente_nfe, ambiente_nfce e ambiente_nfse (1 produção, 2 homologação), sem trava global ALLOW_PRODUCAO. Responsável técnico e configuração do sistema ficam no painel administrativo. NFS-e recebe o serviço completo no JSON; não há catálogo de serviços. RTC recebe CST/cClassTrib, valores e totais no modo informado, sem tabelas tributárias locais nem cálculo de IBS/CBS. Mantida validação estrutural XSD. Credenciais centrais usam X-Empresa-Id."
   },
   "servers": [
     {
@@ -36,15 +36,8 @@
       "name": "NFS-e"
     },
     {
-      "name": "Reforma Tributária"
-    },
-    {
       "name": "Tributos",
       "description": "Cálculo de ICMS, IPI, PIS, COFINS, ISSQN e tributos aproximados. Ver docs/TRIBUTOS-CALCULO.md."
-    },
-    {
-      "name": "Tributação",
-      "description": "Matriz de regras tributárias da empresa (perfis, operações, regras de ICMS e PIS/COFINS). Ver docs/TRIBUTOS-CALCULO.md."
     },
     {
       "name": "Portal do Contador",
@@ -881,6 +874,7 @@
     },
     "/api/v1/tenant": {
       "get": {
+        "x-interno": true,
         "operationId": "getTenant",
         "tags": [
           "Tenant"
@@ -900,6 +894,7 @@
         }
       },
       "put": {
+        "x-interno": true,
         "operationId": "renameTenant",
         "tags": [
           "Tenant"
@@ -954,6 +949,7 @@
     },
     "/api/v1/chaves": {
       "get": {
+        "x-interno": true,
         "operationId": "listApiKeys",
         "tags": [
           "Tenant"
@@ -987,6 +983,7 @@
         "description": "Opera na empresa autenticada ou selecionada por X-Empresa-Id. Aceita chave administrativa ou da empresa; sessão exige papel owner e CSRF nas mutações."
       },
       "post": {
+        "x-interno": true,
         "operationId": "createApiKey",
         "tags": [
           "Tenant"
@@ -1063,6 +1060,7 @@
     },
     "/api/v1/chaves/{id}": {
       "delete": {
+        "x-interno": true,
         "operationId": "revokeApiKey",
         "tags": [
           "Tenant"
@@ -1801,7 +1799,7 @@
           "NF-e"
         ],
         "summary": "Emite NF-e ou NFC-e (ou apenas valida com dry_run=1)",
-        "description": "Monta, valida, assina e transmite NF-e/NFC-e a partir de dados completos. Idempotency-Key obrigatório na emissão real. Use dry_run=1 para validar sem transmitir. Não há catálogo, perfis de cálculo ou integrações comerciais nesta edição. O modo RTC informado preserva valores calculados no Delphi. Para operação durável do PDV com contingência e recuperação após timeout, utilize /api/v1/pdv/nfce.\n\nItens com regra (no lugar de impostos): a API calcula os tributos antes de montar o XML; o dry-run devolve o cálculo completo em calculo_tributos. Valor final informado na regra (ajuste manual) exige papel proprietário ou fiscal (403 ajuste_manual_negado). Se calculo_tributos.calculo_id não bater com o cálculo atual: 409 calculo_divergente, antes de numerar.",
+        "description": "Monta, valida, assina e transmite NF-e/NFC-e a partir de dados completos. Idempotency-Key obrigatório na emissão real. Use dry_run=1 para validar sem transmitir. Não há catálogo, perfis de cálculo ou integrações comerciais nesta edição. O modo RTC informado preserva valores calculados no Delphi. Para operação durável do PDV com contingência e recuperação após timeout, utilize /api/v1/pdv/nfce.\n\nCódigos fiscais no JSON do ERP, em dois modos (calculo_tributos.modo): api — itens com regra (cfop, CST/CSOSN, alíquotas, cClassTrib), a API calcula os tributos no envio, antes de montar o XML, e o dry-run devolve o cálculo completo em calculo_tributos; erp — itens com impostos já calculados, as tags vão para o XML sem recálculo. Valor final informado na regra (ajuste manual) exige papel proprietário ou fiscal (403 ajuste_manual_negado). Se calculo_tributos.calculo_id não bater com o cálculo atual: 409 calculo_divergente, antes de numerar.",
         "parameters": [
           {
             "name": "dry_run",
@@ -2588,7 +2586,7 @@
           "NFS-e"
         ],
         "summary": "Valida (dry_run) ou emite NFS-e na Sefin Nacional",
-        "description": "dry_run=1 monta e valida a DPS no XSD, sem assinar, consultar serviços externos, transmitir ou consumir numeração. Emissão exige Idempotency-Key, certificado A1 e configuração da empresa, usando ambiente_nfse (1 produção, 2 homologação). Não existe trava global de transporte. Em estado incerto, sincronize antes de reenviar.",
+        "description": "dry_run=1 monta e valida a DPS no XSD, sem assinar, consultar serviços externos, transmitir ou consumir numeração. Emissão exige Idempotency-Key, certificado A1 e configuração da empresa, usando ambiente_nfse (1 produção, 2 homologação). Não existe trava global de transporte. Em estado incerto, sincronize antes de reenviar. Códigos fiscais no JSON: servico (códigos), valores.aliquota_iss e tributos federais em percentuais (federais, a API calcula) ou em valores (tributos_federais, calculados pelo ERP).",
         "parameters": [
           {
             "name": "dry_run",
@@ -3095,6 +3093,7 @@
     },
     "/api/v1/empresas": {
       "get": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3134,6 +3133,7 @@
         }
       },
       "post": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3187,6 +3187,7 @@
         }
       ],
       "put": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3230,6 +3231,7 @@
     },
     "/api/v1/admin/usuarios": {
       "get": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3269,6 +3271,7 @@
         }
       },
       "post": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3322,6 +3325,7 @@
         }
       ],
       "put": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3365,6 +3369,7 @@
     },
     "/api/v1/admin/chaves": {
       "get": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3421,6 +3426,7 @@
         }
       },
       "post": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3504,6 +3510,7 @@
         }
       ],
       "delete": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3524,6 +3531,7 @@
     },
     "/api/v1/admin/armazenamento": {
       "get": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3586,6 +3594,7 @@
     },
     "/api/v1/admin/config": {
       "get": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3607,6 +3616,7 @@
         }
       },
       "put": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -3824,12 +3834,13 @@
     },
     "/api/v1/tributos/calcular": {
       "post": {
+        "x-interno": true,
         "operationId": "calcularTributos",
         "tags": [
           "Tributos"
         ],
         "summary": "Calcula ICMS, IPI, PIS, COFINS, ISSQN e tributos aproximados de uma venda",
-        "description": "Só calcula: não grava, não numera, não transmite. A regra de cada item (CST/CSOSN e alíquotas) vem no JSON; CRT e UF vêm da configuração da empresa quando não informados. Valores finais informados na regra são ajustes manuais e recalculam os dependentes. Detalhes em docs/TRIBUTOS-CALCULO.md.",
+        "description": "Só calcula: não grava, não numera, não transmite. A regra de cada item (CST/CSOSN, alíquotas, cClassTrib) e as alíquotas do IBS/CBS vêm no JSON do ERP; CRT e UF vêm da configuração da empresa quando não informados. Valores finais informados na regra são ajustes manuais e recalculam os dependentes. Detalhes em docs/TRIBUTOS-CALCULO.md.",
         "parameters": [
           {
             "name": "detalhar",
@@ -3860,936 +3871,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TributosCalculo"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "422": {
-            "$ref": "#/components/responses/Validation"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao": {
-      "get": {
-        "operationId": "tributacaoCadastro",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Perfis, operações, campos aceitos por CST e UFs",
-        "responses": {
-          "200": {
-            "description": "Cadastro",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/perfis/{codigo}": {
-      "put": {
-        "operationId": "salvar_perfis",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Cria ou altera ({nome, tipo: icms|piscofins}); só proprietário",
-        "parameters": [
-          {
-            "name": "codigo",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "nome"
-                ],
-                "properties": {
-                  "nome": {
-                    "type": "string",
-                    "maxLength": 60
-                  }
-                }
-              },
-              "example": {
-                "nome": "PRODUTO TRIBUTADO"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Salvo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "422": {
-            "$ref": "#/components/responses/Validation"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "excluir_perfis",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Exclui (409 se houver regras)",
-        "parameters": [
-          {
-            "name": "codigo",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Excluído"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/operacoes/{codigo}": {
-      "put": {
-        "operationId": "salvar_operacoes",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Cria ou altera ({nome}); só proprietário",
-        "parameters": [
-          {
-            "name": "codigo",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Salvo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "422": {
-            "$ref": "#/components/responses/Validation"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "excluir_operacoes",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Exclui (409 se houver regras)",
-        "parameters": [
-          {
-            "name": "codigo",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Excluído"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-icms": {
-      "get": {
-        "operationId": "listarRegrasIcms",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Lista as regras de ICMS da empresa (grade do ERP)",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "uf",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tipo_pessoa",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "description": "F, J ou E"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Regras com nomes de perfil/operação e descrição do CST",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "total": {
-                      "type": "integer"
-                    },
-                    "regras": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "perfil": {
-                            "type": "string"
-                          },
-                          "operacao": {
-                            "type": "string"
-                          },
-                          "uf": {
-                            "type": "string"
-                          },
-                          "tipo_pessoa": {
-                            "type": "string"
-                          },
-                          "descricao": {
-                            "type": "string"
-                          },
-                          "cfop": {
-                            "type": "string"
-                          },
-                          "icms": {
-                            "type": "object"
-                          },
-                          "ipi": {
-                            "type": "object"
-                          },
-                          "perfil_nome": {
-                            "type": "string"
-                          },
-                          "operacao_nome": {
-                            "type": "string"
-                          },
-                          "tipo_pessoa_descricao": {
-                            "type": "string"
-                          },
-                          "cst": {
-                            "type": "string"
-                          },
-                          "cst_descricao": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}": {
-      "put": {
-        "operationId": "salvarRegraIcms",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Cria ou altera regra de ICMS {descricao, cfop, icms:{CST|CSOSN,...}, ipi?}; campos conforme o CST",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "uf",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tipo_pessoa",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Regra",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "422": {
-            "$ref": "#/components/responses/Validation"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "excluirRegraIcms",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Exclui regra de ICMS",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "uf",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tipo_pessoa",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Excluída"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "get": {
-        "operationId": "detalharRegraIcms",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Detalhe de uma regra de ICMS",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "uf",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tipo_pessoa",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Regra, nomes e campos rotulados",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "perfil": {
-                      "type": "string"
-                    },
-                    "operacao": {
-                      "type": "string"
-                    },
-                    "uf": {
-                      "type": "string"
-                    },
-                    "tipo_pessoa": {
-                      "type": "string"
-                    },
-                    "descricao": {
-                      "type": "string"
-                    },
-                    "cfop": {
-                      "type": "string"
-                    },
-                    "icms": {
-                      "type": "object"
-                    },
-                    "ipi": {
-                      "type": "object"
-                    },
-                    "perfil_nome": {
-                      "type": "string"
-                    },
-                    "operacao_nome": {
-                      "type": "string"
-                    },
-                    "tipo_pessoa_descricao": {
-                      "type": "string"
-                    },
-                    "cst": {
-                      "type": "string"
-                    },
-                    "cst_descricao": {
-                      "type": "string"
-                    },
-                    "campos": {
-                      "type": "array",
-                      "description": "Cada campo da regra com rótulo e o significado do código, para exibir ao usuário do ERP",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "grupo": {
-                            "type": "string"
-                          },
-                          "campo": {
-                            "type": "string"
-                          },
-                          "rotulo": {
-                            "type": "string"
-                          },
-                          "valor": {},
-                          "valor_descricao": {
-                            "type": "string",
-                            "nullable": true
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
-                "example": {
-                  "perfil": "1",
-                  "operacao": "VENDA",
-                  "uf": "AM",
-                  "tipo_pessoa": "J",
-                  "descricao": "Isento SUFRAMA",
-                  "cfop": "5102",
-                  "icms": {
-                    "CST": "40",
-                    "pICMS": 18,
-                    "motDesICMS": 7,
-                    "metodo_desoneracao": "por_dentro"
-                  },
-                  "perfil_nome": "PRODUTO TRIBUTADO",
-                  "operacao_nome": "VENDA DE PRODUTOS",
-                  "tipo_pessoa_descricao": "Jurídica",
-                  "cst": "40",
-                  "cst_descricao": "Isenta",
-                  "campos": [
-                    {
-                      "grupo": "regra",
-                      "campo": "cfop",
-                      "rotulo": "CFOP",
-                      "valor": "5102",
-                      "valor_descricao": null
-                    },
-                    {
-                      "grupo": "icms",
-                      "campo": "CST",
-                      "rotulo": "CST do ICMS",
-                      "valor": "40",
-                      "valor_descricao": "Isenta"
-                    },
-                    {
-                      "grupo": "icms",
-                      "campo": "motDesICMS",
-                      "rotulo": "Motivo da desoneração",
-                      "valor": 7,
-                      "valor_descricao": "SUFRAMA"
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Regra não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-icms/copiar": {
-      "post": {
-        "operationId": "copiarRegraIcms",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Copia regra(s) de ICMS para outras UFs, tipos de pessoa, perfis e operações",
-        "description": "{origem:{perfil,operacao,uf,tipo_pessoa?}, destino:{ufs?,tipos_pessoa?,perfis?,operacoes?}, sobrescrever?}; [\"*\"] = todos; até 3.000 regras.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "{criadas, sobrescritas, ignoradas}",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "422": {
-            "$ref": "#/components/responses/Validation"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-piscofins": {
-      "get": {
-        "operationId": "listarRegrasPisCofins",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Lista regras de PIS/COFINS",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Regras com nomes e descrição dos CST",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "total": {
-                      "type": "integer"
-                    },
-                    "regras": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "perfil": {
-                            "type": "string"
-                          },
-                          "operacao": {
-                            "type": "string"
-                          },
-                          "descricao": {
-                            "type": "string"
-                          },
-                          "pis": {
-                            "type": "object"
-                          },
-                          "cofins": {
-                            "type": "object"
-                          },
-                          "perfil_nome": {
-                            "type": "string"
-                          },
-                          "operacao_nome": {
-                            "type": "string"
-                          },
-                          "pis_cst_descricao": {
-                            "type": "string"
-                          },
-                          "cofins_cst_descricao": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-piscofins/{perfil}/{operacao}": {
-      "put": {
-        "operationId": "salvarRegraPisCofins",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Cria ou altera regra de PIS/COFINS {descricao, pis, cofins}",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Regra",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "422": {
-            "$ref": "#/components/responses/Validation"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "excluirRegraPisCofins",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Exclui regra de PIS/COFINS",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Excluída"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "get": {
-        "operationId": "detalharRegraPisCofins",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Detalhe de uma regra de PIS/COFINS",
-        "parameters": [
-          {
-            "name": "perfil",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "operacao",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Regra, nomes e campos rotulados",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "perfil": {
-                      "type": "string"
-                    },
-                    "operacao": {
-                      "type": "string"
-                    },
-                    "descricao": {
-                      "type": "string"
-                    },
-                    "pis": {
-                      "type": "object"
-                    },
-                    "cofins": {
-                      "type": "object"
-                    },
-                    "perfil_nome": {
-                      "type": "string"
-                    },
-                    "operacao_nome": {
-                      "type": "string"
-                    },
-                    "pis_cst_descricao": {
-                      "type": "string"
-                    },
-                    "cofins_cst_descricao": {
-                      "type": "string"
-                    },
-                    "campos": {
-                      "type": "array",
-                      "description": "Cada campo da regra com rótulo e o significado do código, para exibir ao usuário do ERP",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "grupo": {
-                            "type": "string"
-                          },
-                          "campo": {
-                            "type": "string"
-                          },
-                          "rotulo": {
-                            "type": "string"
-                          },
-                          "valor": {},
-                          "valor_descricao": {
-                            "type": "string",
-                            "nullable": true
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Regra não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/importar": {
-      "post": {
-        "operationId": "importarTributacao",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Carga inicial em lote (tudo ou nada): perfis, operacoes, regras_icms, regras_piscofins",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Contagens",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
                 }
               }
             }
@@ -4869,15 +3950,10 @@
                       "aba": {
                         "type": "string",
                         "enum": [
-                          "inicio",
-                          "perfis",
-                          "operacoes",
-                          "regras-icms",
-                          "regras-piscofins",
-                          "regras-iss",
-                          "simulador"
+                          "inicio"
                         ],
-                        "default": "inicio"
+                        "default": "inicio",
+                        "description": "O portal tem só o início. Abas antigas da tributação (perfis, operacoes, regras-icms, regras-piscofins, regras-iss, simulador) ainda são aceitas e abrem o início."
                       }
                     }
                   },
@@ -4896,7 +3972,7 @@
                 "perfil": "fiscal",
                 "tipo_usuario": "cliente",
                 "abrir": {
-                  "aba": "regras-icms"
+                  "aba": "inicio"
                 },
                 "sistema": "ClickPDV"
               }
@@ -4952,6 +4028,7 @@
     },
     "/api/v1/portal/sessao": {
       "post": {
+        "x-interno": true,
         "operationId": "portalSessao",
         "tags": [
           "Portal do Contador"
@@ -5040,6 +4117,11 @@
                     "aba": {
                       "type": "string"
                     },
+                    "rota": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Janela aberta pelo atalho (abrir.acao), ex.: regras-iss/editar/CURSO"
+                    },
                     "sistema": {
                       "type": "string",
                       "nullable": true
@@ -5077,6 +4159,7 @@
     },
     "/api/v1/portal/contexto": {
       "get": {
+        "x-interno": true,
         "operationId": "portalContexto",
         "tags": [
           "Portal do Contador"
@@ -5144,6 +4227,11 @@
                     "aba": {
                       "type": "string"
                     },
+                    "rota": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Janela aberta pelo atalho (abrir.acao), ex.: regras-iss/editar/CURSO"
+                    },
                     "sistema": {
                       "type": "string",
                       "nullable": true
@@ -5171,6 +4259,7 @@
     },
     "/api/v1/portal/sair": {
       "post": {
+        "x-interno": true,
         "operationId": "portalSair",
         "tags": [
           "Portal do Contador"
@@ -5201,1496 +4290,9 @@
         }
       }
     },
-    "/api/v1/tributacao/regras-iss": {
-      "get": {
-        "operationId": "listarRegrasIss",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Lista as regras de ISS da NFS-e (grade do ERP)",
-        "parameters": [
-          {
-            "name": "busca",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "description": "Código, descrição ou código de tributação nacional"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Regras de ISS",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "total": {
-                      "type": "integer"
-                    },
-                    "regras": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "codigo": {
-                            "type": "string"
-                          },
-                          "descricao": {
-                            "type": "string"
-                          },
-                          "servico": {
-                            "type": "object"
-                          },
-                          "iss": {
-                            "type": "object"
-                          },
-                          "servico_descricao": {
-                            "type": "string"
-                          },
-                          "item_lc116": {
-                            "type": "string"
-                          },
-                          "tributacao_iss_descricao": {
-                            "type": "string"
-                          },
-                          "retencao_iss_descricao": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "post": {
-        "operationId": "criarRegraIss",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Inclui regra de ISS com código automático",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "descricao",
-                  "servico"
-                ],
-                "properties": {
-                  "descricao": {
-                    "type": "string",
-                    "maxLength": 120
-                  },
-                  "servico": {
-                    "type": "object",
-                    "required": [
-                      "codigo_tributacao_nacional"
-                    ],
-                    "properties": {
-                      "codigo_tributacao_nacional": {
-                        "type": "string",
-                        "pattern": "^\\d{6}$"
-                      },
-                      "nbs": {
-                        "type": "string",
-                        "pattern": "^\\d{9}$"
-                      },
-                      "codigo_tributacao_municipal": {
-                        "type": "string",
-                        "pattern": "^\\d{3}$"
-                      },
-                      "codigo_interno": {
-                        "type": "string",
-                        "maxLength": 20
-                      }
-                    }
-                  },
-                  "iss": {
-                    "type": "object",
-                    "properties": {
-                      "aliquota_iss": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 5,
-                        "description": "Só com tributacao_iss 1; omitida na DPS quando o regime/convênio não permite"
-                      }
-                    },
-                    "description": "Só a alíquota; tributação, retenção e imunidade vêm do cadastro da empresa (PUT /nfse/config)"
-                  },
-                  "tipo_pessoa": {
-                    "type": "string",
-                    "enum": [
-                      "F",
-                      "J"
-                    ],
-                    "description": "Identificação da regra (tomador pessoa física ou jurídica)"
-                  },
-                  "federais": {
-                    "type": "object",
-                    "nullable": true,
-                    "required": [
-                      "cst_pis_cofins"
-                    ],
-                    "description": "PIS/COFINS, IRRF e CSLL do serviço; na emissão, sem tributos_federais no JSON, a API calcula o grupo tribFed",
-                    "properties": {
-                      "cst_pis_cofins": {
-                        "type": "string",
-                        "pattern": "^\\d{2}$"
-                      },
-                      "aliquota_pis": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "aliquota_cofins": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "aliquota_irrf": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "aliquota_csll": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "tipo_retencao": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9,
-                        "default": 0,
-                        "description": "tpRetPisCofins: 0 nada retido, 1 PIS/COFINS retidos, 2 PIS/COFINS não retidos, 3 PIS/COFINS/CSLL retidos, 4 PIS/COFINS retidos e CSLL não, 5 só PIS, 6 só COFINS, 7 COFINS/CSLL, 8 só CSLL, 9 PIS/CSLL"
-                      }
-                    }
-                  },
-                  "ibs_cbs": {
-                    "type": "object",
-                    "nullable": true,
-                    "description": "Dados de IBS/CBS do serviço (a NFS-e não calcula IBS/CBS; completam o ibs_cbs informado na nota)",
-                    "properties": {
-                      "indicador_operacao": {
-                        "type": "string",
-                        "pattern": "^\\d{6}$"
-                      },
-                      "classificacao_tributaria": {
-                        "type": "string",
-                        "pattern": "^\\d{6}$"
-                      },
-                      "percentual_diferimento": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "operacao_onerosa": {
-                        "type": "boolean",
-                        "default": true
-                      },
-                      "servico_exterior": {
-                        "type": "boolean",
-                        "default": false
-                      }
-                    }
-                  }
-                },
-                "example": {
-                  "descricao": "Consultoria para PJ",
-                  "tipo_pessoa": "J",
-                  "servico": {
-                    "codigo_tributacao_nacional": "170101",
-                    "nbs": "113011000"
-                  },
-                  "iss": {
-                    "tributacao_iss": 1,
-                    "retencao_iss": 1,
-                    "aliquota_iss": 2
-                  },
-                  "federais": {
-                    "cst_pis_cofins": "01",
-                    "aliquota_pis": 0.65,
-                    "aliquota_cofins": 3,
-                    "aliquota_irrf": 1.5,
-                    "aliquota_csll": 1,
-                    "tipo_retencao": 3
-                  },
-                  "ibs_cbs": {
-                    "indicador_operacao": "100301",
-                    "classificacao_tributaria": "000001",
-                    "operacao_onerosa": true,
-                    "servico_exterior": false
-                  }
-                }
-              },
-              "example": {
-                "descricao": "Licenciamento com retenção",
-                "servico": {
-                  "codigo_tributacao_nacional": "010501"
-                },
-                "iss": {
-                  "aliquota_iss": 2
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Regra criada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dados inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-iss/{codigo}": {
-      "parameters": [
-        {
-          "name": "codigo",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "operationId": "detalharRegraIss",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Detalhe de uma regra de ISS",
-        "responses": {
-          "200": {
-            "description": "Regra e campos rotulados",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "codigo": {
-                      "type": "string"
-                    },
-                    "descricao": {
-                      "type": "string"
-                    },
-                    "servico": {
-                      "type": "object"
-                    },
-                    "iss": {
-                      "type": "object"
-                    },
-                    "servico_descricao": {
-                      "type": "string"
-                    },
-                    "item_lc116": {
-                      "type": "string"
-                    },
-                    "tributacao_iss_descricao": {
-                      "type": "string"
-                    },
-                    "retencao_iss_descricao": {
-                      "type": "string"
-                    },
-                    "campos": {
-                      "type": "array",
-                      "description": "Cada campo da regra com rótulo e o significado do código, para exibir ao usuário do ERP",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "grupo": {
-                            "type": "string"
-                          },
-                          "campo": {
-                            "type": "string"
-                          },
-                          "rotulo": {
-                            "type": "string"
-                          },
-                          "valor": {},
-                          "valor_descricao": {
-                            "type": "string",
-                            "nullable": true
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Regra não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "put": {
-        "operationId": "salvarRegraIss",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Cria ou altera uma regra de ISS",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "descricao",
-                  "servico"
-                ],
-                "properties": {
-                  "descricao": {
-                    "type": "string",
-                    "maxLength": 120
-                  },
-                  "servico": {
-                    "type": "object",
-                    "required": [
-                      "codigo_tributacao_nacional"
-                    ],
-                    "properties": {
-                      "codigo_tributacao_nacional": {
-                        "type": "string",
-                        "pattern": "^\\d{6}$"
-                      },
-                      "nbs": {
-                        "type": "string",
-                        "pattern": "^\\d{9}$"
-                      },
-                      "codigo_tributacao_municipal": {
-                        "type": "string",
-                        "pattern": "^\\d{3}$"
-                      },
-                      "codigo_interno": {
-                        "type": "string",
-                        "maxLength": 20
-                      }
-                    }
-                  },
-                  "iss": {
-                    "type": "object",
-                    "properties": {
-                      "aliquota_iss": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 5,
-                        "description": "Só com tributacao_iss 1; omitida na DPS quando o regime/convênio não permite"
-                      }
-                    },
-                    "description": "Só a alíquota; tributação, retenção e imunidade vêm do cadastro da empresa (PUT /nfse/config)"
-                  },
-                  "tipo_pessoa": {
-                    "type": "string",
-                    "enum": [
-                      "F",
-                      "J"
-                    ],
-                    "description": "Identificação da regra (tomador pessoa física ou jurídica)"
-                  },
-                  "federais": {
-                    "type": "object",
-                    "nullable": true,
-                    "required": [
-                      "cst_pis_cofins"
-                    ],
-                    "description": "PIS/COFINS, IRRF e CSLL do serviço; na emissão, sem tributos_federais no JSON, a API calcula o grupo tribFed",
-                    "properties": {
-                      "cst_pis_cofins": {
-                        "type": "string",
-                        "pattern": "^\\d{2}$"
-                      },
-                      "aliquota_pis": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "aliquota_cofins": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "aliquota_irrf": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "aliquota_csll": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "tipo_retencao": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9,
-                        "default": 0,
-                        "description": "tpRetPisCofins: 0 nada retido, 1 PIS/COFINS retidos, 2 PIS/COFINS não retidos, 3 PIS/COFINS/CSLL retidos, 4 PIS/COFINS retidos e CSLL não, 5 só PIS, 6 só COFINS, 7 COFINS/CSLL, 8 só CSLL, 9 PIS/CSLL"
-                      }
-                    }
-                  },
-                  "ibs_cbs": {
-                    "type": "object",
-                    "nullable": true,
-                    "description": "Dados de IBS/CBS do serviço (a NFS-e não calcula IBS/CBS; completam o ibs_cbs informado na nota)",
-                    "properties": {
-                      "indicador_operacao": {
-                        "type": "string",
-                        "pattern": "^\\d{6}$"
-                      },
-                      "classificacao_tributaria": {
-                        "type": "string",
-                        "pattern": "^\\d{6}$"
-                      },
-                      "percentual_diferimento": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 100
-                      },
-                      "operacao_onerosa": {
-                        "type": "boolean",
-                        "default": true
-                      },
-                      "servico_exterior": {
-                        "type": "boolean",
-                        "default": false
-                      }
-                    }
-                  }
-                },
-                "example": {
-                  "descricao": "Consultoria para PJ",
-                  "tipo_pessoa": "J",
-                  "servico": {
-                    "codigo_tributacao_nacional": "170101",
-                    "nbs": "113011000"
-                  },
-                  "iss": {
-                    "tributacao_iss": 1,
-                    "retencao_iss": 1,
-                    "aliquota_iss": 2
-                  },
-                  "federais": {
-                    "cst_pis_cofins": "01",
-                    "aliquota_pis": 0.65,
-                    "aliquota_cofins": 3,
-                    "aliquota_irrf": 1.5,
-                    "aliquota_csll": 1,
-                    "tipo_retencao": 3
-                  },
-                  "ibs_cbs": {
-                    "indicador_operacao": "100301",
-                    "classificacao_tributaria": "000001",
-                    "operacao_onerosa": true,
-                    "servico_exterior": false
-                  }
-                }
-              },
-              "example": {
-                "descricao": "Licenciamento com retenção",
-                "servico": {
-                  "codigo_tributacao_nacional": "010501"
-                },
-                "iss": {
-                  "aliquota_iss": 2
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Regra salva",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "codigo": {
-                      "type": "string"
-                    },
-                    "descricao": {
-                      "type": "string"
-                    },
-                    "servico": {
-                      "type": "object"
-                    },
-                    "iss": {
-                      "type": "object"
-                    },
-                    "servico_descricao": {
-                      "type": "string"
-                    },
-                    "item_lc116": {
-                      "type": "string"
-                    },
-                    "tributacao_iss_descricao": {
-                      "type": "string"
-                    },
-                    "retencao_iss_descricao": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dados inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "excluirRegraIss",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Exclui uma regra de ISS",
-        "responses": {
-          "204": {
-            "description": "Excluída"
-          },
-          "404": {
-            "description": "Regra não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/cclasstrib": {
-      "get": {
-        "operationId": "listarCClassTrib",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Tabela local de cClassTrib (IBS/CBS)",
-        "description": "Somente leitura. Atualizada pelo administrador da API com bin/cclasstrib.php (planilha oficial ou API Conformidade Fácil da SVRS).",
-        "parameters": [
-          {
-            "name": "cst",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "busca",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Tabela",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "tabela": {
-                      "type": "object",
-                      "properties": {
-                        "carregada": {
-                          "type": "boolean"
-                        },
-                        "versao": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "atualizado_em": {
-                          "type": "string"
-                        },
-                        "origem": {
-                          "type": "string"
-                        },
-                        "total": {
-                          "type": "integer"
-                        }
-                      }
-                    },
-                    "total": {
-                      "type": "integer"
-                    },
-                    "itens": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "cClassTrib": {
-                            "type": "string"
-                          },
-                          "CST": {
-                            "type": "string"
-                          },
-                          "nome": {
-                            "type": "string"
-                          },
-                          "tipo_aliquota": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "pRedIBS": {
-                            "type": "number"
-                          },
-                          "pRedCBS": {
-                            "type": "number"
-                          },
-                          "dIniVig": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "dFimVig": {
-                            "type": "string",
-                            "nullable": true
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/admin/rtc/aliquotas": {
-      "get": {
-        "operationId": "listarAliquotasIbsCbs",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Tabela de alíquotas do IBS/CBS (global)",
-        "parameters": [
-          {
-            "name": "data",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "municipio",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "linhas e, com data, a vigente",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "incluirAliquotaIbsCbs",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Inclui linha de alíquota",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "abrangencia",
-                  "inicio",
-                  "pIBSUF",
-                  "pIBSMun",
-                  "pCBS"
-                ],
-                "properties": {
-                  "abrangencia": {
-                    "type": "string",
-                    "enum": [
-                      "nacional",
-                      "uf",
-                      "municipio"
-                    ]
-                  },
-                  "uf": {
-                    "type": "string"
-                  },
-                  "codigo_municipio": {
-                    "type": "string",
-                    "pattern": "^\\d{7}$"
-                  },
-                  "inicio": {
-                    "type": "string",
-                    "format": "date"
-                  },
-                  "fim": {
-                    "type": "string",
-                    "format": "date",
-                    "nullable": true
-                  },
-                  "pIBSUF": {
-                    "type": "number"
-                  },
-                  "pIBSMun": {
-                    "type": "number"
-                  },
-                  "pCBS": {
-                    "type": "number"
-                  },
-                  "descricao": {
-                    "type": "string",
-                    "maxLength": 120
-                  }
-                },
-                "example": {
-                  "abrangencia": "municipio",
-                  "codigo_municipio": "1302603",
-                  "inicio": "2029-01-01",
-                  "pIBSUF": 1.0,
-                  "pIBSMun": 0.5,
-                  "pCBS": 8.8
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Linha incluída",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Vigência sobreposta para o mesmo local",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dados inválidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/rtc/aliquotas/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "put": {
-        "operationId": "alterarAliquotaIbsCbs",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Altera linha de alíquota",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "abrangencia",
-                  "inicio",
-                  "pIBSUF",
-                  "pIBSMun",
-                  "pCBS"
-                ],
-                "properties": {
-                  "abrangencia": {
-                    "type": "string",
-                    "enum": [
-                      "nacional",
-                      "uf",
-                      "municipio"
-                    ]
-                  },
-                  "uf": {
-                    "type": "string"
-                  },
-                  "codigo_municipio": {
-                    "type": "string",
-                    "pattern": "^\\d{7}$"
-                  },
-                  "inicio": {
-                    "type": "string",
-                    "format": "date"
-                  },
-                  "fim": {
-                    "type": "string",
-                    "format": "date",
-                    "nullable": true
-                  },
-                  "pIBSUF": {
-                    "type": "number"
-                  },
-                  "pIBSMun": {
-                    "type": "number"
-                  },
-                  "pCBS": {
-                    "type": "number"
-                  },
-                  "descricao": {
-                    "type": "string",
-                    "maxLength": 120
-                  }
-                },
-                "example": {
-                  "abrangencia": "municipio",
-                  "codigo_municipio": "1302603",
-                  "inicio": "2029-01-01",
-                  "pIBSUF": 1.0,
-                  "pIBSMun": 0.5,
-                  "pCBS": 8.8
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Linha alterada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Vigência sobreposta",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "excluirAliquotaIbsCbs",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Exclui linha de alíquota",
-        "responses": {
-          "204": {
-            "description": "Excluída"
-          },
-          "404": {
-            "description": "Não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/rtc/municipios": {
-      "get": {
-        "operationId": "listarMunicipiosIbge",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Municípios do IBGE",
-        "parameters": [
-          {
-            "name": "uf",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "busca",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "municipios: [{codigo, nome, uf}]",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/rtc/cclasstrib": {
-      "get": {
-        "operationId": "consultarCClassTribAdmin",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Tabela de cClassTrib",
-        "responses": {
-          "200": {
-            "description": "Tabela",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "importarCClassTrib",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Importa a tabela de cClassTrib (substitui inteira)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "conteudo"
-                ],
-                "properties": {
-                  "conteudo": {
-                    "type": "string",
-                    "description": "Texto do CSV da planilha oficial (aba cClassTrib) ou do JSON da API Conformidade Fácil"
-                  },
-                  "versao": {
-                    "type": "string",
-                    "maxLength": 40
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "total, incluidos, alterados, removidos e tabela",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Arquivo inválido: nada foi alterado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "description": "Só administrador central",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-iss/copiar": {
-      "post": {
-        "operationId": "copiarRegraIss",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Copia uma regra de ISS para um novo código",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "origem"
-                ],
-                "properties": {
-                  "origem": {
-                    "type": "string"
-                  },
-                  "destino": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9_-]{1,30}$",
-                    "description": "Opcional: sem ele, o próximo código automático"
-                  },
-                  "descricao": {
-                    "type": "string",
-                    "maxLength": 120
-                  },
-                  "sobrescrever": {
-                    "type": "boolean",
-                    "default": false
-                  }
-                }
-              },
-              "example": {
-                "origem": "CONSULT-PJ",
-                "destino": "CONSULT-PF",
-                "descricao": "Consultoria para pessoa física"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Regra criada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Regra de origem não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Destino já existe (use sobrescrever)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Destino inválido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/perfis": {
-      "post": {
-        "operationId": "criarPerfilTributario",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Inclui perfil tributário com código automático (vale para ICMS e PIS/COFINS)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "nome"
-                ],
-                "properties": {
-                  "nome": {
-                    "type": "string",
-                    "maxLength": 60
-                  }
-                }
-              },
-              "example": {
-                "nome": "PRODUTO TRIBUTADO"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Perfil criado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Nome inválido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/operacoes": {
-      "post": {
-        "operationId": "criarOperacaoTributaria",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Inclui operação com código automático",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "nome"
-                ],
-                "properties": {
-                  "nome": {
-                    "type": "string",
-                    "maxLength": 60
-                  }
-                }
-              },
-              "example": {
-                "nome": "VENDA DE PRODUTOS"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Operação criada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Nome inválido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tributacao/regras-piscofins/copiar": {
-      "post": {
-        "operationId": "copiarRegraPisCofins",
-        "tags": [
-          "Tributação"
-        ],
-        "summary": "Copia uma regra de PIS/COFINS para outros perfis e operações",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "origem"
-                ],
-                "properties": {
-                  "origem": {
-                    "type": "object",
-                    "properties": {
-                      "perfil": {
-                        "type": "string"
-                      },
-                      "operacao": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "destino": {
-                    "type": "object",
-                    "properties": {
-                      "perfis": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "operacoes": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "sobrescrever": {
-                    "type": "boolean",
-                    "default": false
-                  }
-                }
-              },
-              "example": {
-                "origem": {
-                  "perfil": "1",
-                  "operacao": "1"
-                },
-                "destino": {
-                  "perfis": [
-                    "2",
-                    "3"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "{criadas, sobrescritas, ignoradas}",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Regra de origem não encontrada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Destino inválido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/admin/configuracao": {
       "get": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -6718,6 +4320,7 @@
     },
     "/api/v1/admin/configuracao/{grupo}": {
       "put": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -6801,6 +4404,7 @@
     },
     "/api/v1/admin/configuracao/armazenamento/testar": {
       "post": {
+        "x-interno": true,
         "tags": [
           "Administração central"
         ],
@@ -7417,9 +5021,55 @@
               }
             }
           },
-          "regra_iss": {
-            "type": "string",
-            "description": "Código da regra de ISS da empresa (/tributacao/regras-iss). Preenche servico (códigos) e valores (tributacao_iss, tipo_imunidade, retencao_iss, aliquota_iss); o que vier no JSON prevalece."
+          "federais": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cst_pis_cofins"
+            ],
+            "description": "Percentuais dos tributos federais do serviço: a API calcula o grupo tributos_federais (tribFed) no envio, sobre valor do serviço − desconto incondicionado. Use federais (a API calcula) ou tributos_federais (valores calculados pelo ERP), não os dois.",
+            "properties": {
+              "cst_pis_cofins": {
+                "type": "string",
+                "pattern": "^\\d{2}$",
+                "description": "CST de PIS/COFINS (TSTipoCST), como texto"
+              },
+              "aliquota_pis": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "aliquota_cofins": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "aliquota_irrf": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "aliquota_csll": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "tipo_retencao": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9,
+                "default": 0,
+                "description": "tpRetPisCofins: 0 nenhum, 1 PIS/COFINS, 3 PIS/COFINS/CSLL, 8 só CSLL... (vRetCSLL soma os retidos, NT 007)"
+              }
+            },
+            "example": {
+              "cst_pis_cofins": "01",
+              "aliquota_pis": 0.65,
+              "aliquota_cofins": 3,
+              "aliquota_irrf": 1.5,
+              "aliquota_csll": 1,
+              "tipo_retencao": 3
+            }
           }
         }
       },
@@ -8166,8 +5816,16 @@
           "calculo_tributos": {
             "type": "object",
             "additionalProperties": false,
-            "description": "Só com itens[].regra. Pagamento único sem valor recebe o total calculado.",
+            "description": "Cálculo dos tributos no envio. modo api: cada item traz regra (códigos fiscais do ERP) e a API calcula; modo erp: os itens trazem impostos já calculados e nada é recalculado. Sem modo, é deduzido dos itens. Pagamento único sem valor recebe o total calculado.",
             "properties": {
+              "modo": {
+                "type": "string",
+                "enum": [
+                  "api",
+                  "erp"
+                ],
+                "description": "api: a API calcula a partir de itens[].regra; erp: itens[].impostos já calculados pelo ERP (as tags vão para o XML como vieram). Não misture os dois na mesma nota."
+              },
               "calculo_id": {
                 "type": "string",
                 "pattern": "^calc_[0-9a-f]{32}$",
@@ -8176,21 +5834,9 @@
               "excluir_icms_base_piscofins": {
                 "type": "boolean"
               },
-              "operacao": {
-                "type": "string",
-                "description": "Operação da matriz (obrigatória com perfis)"
-              },
-              "tipo_pessoa": {
-                "type": "string",
-                "enum": [
-                  "F",
-                  "J",
-                  "E"
-                ]
-              },
               "aliquotas_ibscbs": {
                 "type": "object",
-                "description": "Opcional: alíquotas do IBS/CBS a usar no lugar da tabela de alíquotas da API",
+                "description": "Alíquotas do IBS/CBS {pIBSUF, pIBSMun, pCBS} em %, informadas pelo ERP. Obrigatórias quando algum item calcula IBS/CBS (a API não mantém tabela de alíquotas).",
                 "required": [
                   "pIBSUF",
                   "pIBSMun",
@@ -8349,19 +5995,11 @@
                 "$ref": "#/components/schemas/TributosRegra"
               }
             ],
-            "description": "No lugar de impostos: a API calcula ICMS, IPI, PIS, COFINS e tributos aproximados (docs/TRIBUTOS-CALCULO.md). Com regra, impostos só aceita ibscbs/is. Não misture itens com e sem regra."
+            "description": "Códigos fiscais do item enviados pelo ERP (cfop, icms {CST|CSOSN, orig, alíquotas...}, pis, cofins, ipi, ibscbs, ibpt): a API calcula ICMS, IPI, PIS, COFINS, IBS/CBS e tributos aproximados no envio (calculo_tributos.modo = api; docs/TRIBUTOS-CALCULO.md). Com regra, impostos só aceita ibscbs/is. Não misture itens com e sem regra."
           },
           "qtd_tributavel_unidade": {
             "type": "number",
             "description": "Só com regra: quantidade tributada por unidade (ICMS monofásico)"
-          },
-          "perfil_icms": {
-            "description": "Legado: troca o perfil só de ICMS",
-            "type": "string"
-          },
-          "perfil_piscofins": {
-            "description": "Legado: troca o perfil só de PIS/COFINS",
-            "type": "string"
           },
           "origem": {
             "description": "Só com cálculo pela API (docs/TRIBUTOS-CALCULO.md)",
@@ -8376,14 +6014,10 @@
           "cclasstrib": {
             "type": "string",
             "pattern": "^\\d{6}$",
-            "description": "cClassTrib do produto (cálculo do IBS/CBS pela API; alíquotas da tabela da API ou de calculo_tributos.aliquotas_ibscbs)"
+            "description": "cClassTrib do produto (atalho para regra.ibscbs.cClassTrib; o CST são os 3 primeiros dígitos). Cálculo do IBS/CBS pela API com calculo_tributos.aliquotas_ibscbs."
           },
           "credito_presumido": {
             "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
-          },
-          "perfil": {
-            "type": "string",
-            "description": "Perfil tributário do produto: vale para as regras de ICMS e PIS/COFINS"
           }
         }
       },
@@ -10407,7 +8041,7 @@
           },
           "ibscbs": {
             "type": "object",
-            "description": "IBS/CBS (Reforma Tributária, regime normal). Normalmente basta itens[].cclasstrib; CST, redução e vigência vêm da tabela local de cClassTrib.",
+            "description": "IBS/CBS (Reforma Tributária, regime normal), informado pelo ERP: cClassTrib (ou itens[].cclasstrib), redução do cClassTrib no CST 200 (pRedIBS, pRedCBS) e diferimento no CST 510 (pDif). A API não mantém tabela de cClassTrib.",
             "properties": {
               "cClassTrib": {
                 "type": "string",
@@ -10422,7 +8056,19 @@
                   "410",
                   "510"
                 ],
-                "description": "Opcional: derivado do cClassTrib"
+                "description": "Opcional: os 3 primeiros dígitos do cClassTrib"
+              },
+              "pRedIBS": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "CST 200: percentual de redução da alíquota do IBS do cClassTrib"
+              },
+              "pRedCBS": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "CST 200: percentual de redução da alíquota da CBS do cClassTrib"
               },
               "pDif": {
                 "type": "number",
@@ -10490,27 +8136,14 @@
               "excluir_icms_base_piscofins": {
                 "type": "boolean"
               },
-              "codigo": {
-                "type": "string",
-                "description": "Operação da matriz (com perfis)"
-              },
-              "tipo_pessoa": {
-                "type": "string",
-                "enum": [
-                  "F",
-                  "J",
-                  "E"
-                ],
-                "default": "F"
-              },
               "data": {
                 "type": "string",
                 "format": "date",
-                "description": "Data da operação (padrão: hoje, horário de Brasília). Vigência do cClassTrib e se vItem soma IBS/CBS (2027+)."
+                "description": "Data da operação (padrão: hoje, horário de Brasília). Define se vItem soma IBS/CBS (2027+)."
               },
               "aliquotas_ibscbs": {
                 "type": "object",
-                "description": "Opcional: alíquotas do IBS/CBS a usar no lugar da tabela de alíquotas da API",
+                "description": "Alíquotas do IBS/CBS {pIBSUF, pIBSMun, pCBS} em %, informadas pelo ERP (obrigatórias quando algum item calcula IBS/CBS)",
                 "required": [
                   "pIBSUF",
                   "pIBSMun",
@@ -10542,7 +8175,7 @@
               "municipio_destino": {
                 "type": "string",
                 "pattern": "^\\d{7}$",
-                "description": "Código IBGE do município de destino: escolhe as alíquotas de IBS/CBS (sem ele, o município do emitente)"
+                "description": "Código IBGE do município de destino (sem ele, o do emitente); registrado na fotografia do IBS/CBS"
               },
               "credito_presumido": {
                 "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
@@ -10610,12 +8243,6 @@
                 "regra": {
                   "$ref": "#/components/schemas/TributosRegra"
                 },
-                "perfil_icms": {
-                  "type": "string"
-                },
-                "perfil_piscofins": {
-                  "type": "string"
-                },
                 "origem": {
                   "type": "integer",
                   "minimum": 0,
@@ -10627,7 +8254,7 @@
                 "cclasstrib": {
                   "type": "string",
                   "pattern": "^\\d{6}$",
-                  "description": "cClassTrib do produto (tabela local): habilita o cálculo do IBS/CBS"
+                  "description": "cClassTrib do produto (atalho para regra.ibscbs.cClassTrib): habilita o cálculo do IBS/CBS"
                 },
                 "credito_presumido": {
                   "$ref": "#/components/schemas/CreditoPresumidoIbsCbs"
@@ -10746,7 +8373,7 @@
           },
           "ibscbs": {
             "type": "object",
-            "description": "Fotografia do IBS/CBS: alíquotas usadas, origem (informada, tabela ou lei), município e versão da tabela de cClassTrib"
+            "description": "Fotografia do IBS/CBS: alíquotas usadas (informadas pelo ERP) e município"
           }
         }
       },

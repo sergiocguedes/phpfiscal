@@ -39,9 +39,14 @@ final class Entrada
         'iss' => ['aliquota' => 4, 'cMunFG' => '/^\d{7}$/', 'cListServ' => '/^\d{2}\.\d{2}$/', 'indISS' => '/^[1-7]$/',
             'indIncentivo' => '/^[12]$/', 'vBC' => 2, 'vISSQN' => 2],
         'ibpt' => ['federal' => 4, 'estadual' => 4, 'municipal' => 4],
-        // Reforma Tributária: cClassTrib do produto (CST, redução e vigência vêm da tabela local) e diferimento (CST 510)
-        'ibscbs' => ['CST' => '/^\d{3}$/D', 'cClassTrib' => '/^\d{6}$/D', 'pDif' => 4],
+        // Reforma Tributária: tudo vem do ERP no JSON: cClassTrib (o CST são os 3 primeiros dígitos), redução do
+        // cClassTrib no CST 200 (pRedIBS, pRedCBS) e diferimento (CST 510)
+        'ibscbs' => ['CST' => '/^\d{3}$/D', 'cClassTrib' => '/^\d{6}$/D', 'pRedIBS' => 4, 'pRedCBS' => 4, 'pDif' => 4],
     ];
+
+    /** Campos retirados com a matriz de tributação: o ERP envia a regra fiscal do item no JSON. */
+    public const PERFIS_RETIRADOS = ['perfil', 'perfil_icms', 'perfil_piscofins'];
+    public const MSG_PERFIS = 'Perfis e operações tributárias foram retirados da API: envie os códigos fiscais do item em regra (cfop, icms, pis, cofins, ipi, ibscbs)';
 
     /** Percentuais acima de 100 aceitos (MVA). */
     public const SEM_TETO = ['pMVAST'];
@@ -86,11 +91,13 @@ final class Entrada
         }
 
         $op = self::obj($in, 'operacao', $e);
-        $permitidos = ['codigo', 'tipo_pessoa', 'uf_destino', 'consumidor_final', 'contribuinte_icms', 'desconto_iss_condicionado',
+        $permitidos = ['uf_destino', 'consumidor_final', 'contribuinte_icms', 'desconto_iss_condicionado',
             'excluir_icms_base_piscofins', 'data', 'aliquotas_ibscbs', 'municipio_destino', 'credito_presumido'];
         foreach (array_keys($op) as $k) {
             if ($k === 'metodo_desoneracao') {
                 $e->add('operacao.metodo_desoneracao', 'Agora fica na regra de ICMS: regra.icms.metodo_desoneracao (CST 30, 40, 41, 50 e 90)');
+            } elseif ($k === 'codigo' || $k === 'tipo_pessoa') {
+                $e->add("operacao.$k", self::MSG_PERFIS);
             } elseif (!in_array($k, $permitidos, true)) {
                 $e->add("operacao.$k", 'Campo não permitido');
             }
@@ -108,14 +115,6 @@ final class Entrada
             }
             $bools[$k] = $v;
         }
-        $opCodigo = $op['codigo'] ?? null;
-        if (is_int($opCodigo)) {
-            $opCodigo = (string) $opCodigo;
-        }
-        if ($opCodigo !== null && (!is_string($opCodigo) || !preg_match('/^[A-Za-z0-9_-]{1,30}$/D', $opCodigo))) {
-            $e->add('operacao.codigo', 'Código da operação cadastrada na matriz de regras');
-            $opCodigo = null;
-        }
         // data da operação (emissão): define as alíquotas do IBS/CBS do ano e se vItem soma IBS/CBS (a partir de 2027)
         $data = $op['data'] ?? (new \DateTimeImmutable('now', new \DateTimeZone('America/Sao_Paulo')))->format('Y-m-d');
         if (!is_string($data) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $data, $md) || !checkdate((int) $md[2], (int) $md[3], (int) $md[1])) {
@@ -131,7 +130,7 @@ final class Entrada
             $munDest = null;
         }
         $munOp = $munDest ?? ($munEmit !== '' ? $munEmit : null);
-        // alíquotas do IBS/CBS informadas no JSON têm prioridade sobre a tabela da API
+        // alíquotas do IBS/CBS: sempre informadas pelo ERP no JSON (a API não mantém tabela de alíquotas)
         $aliqIbs = null;
         if (array_key_exists('aliquotas_ibscbs', $op)) {
             $a = $op['aliquotas_ibscbs'];
@@ -154,10 +153,6 @@ final class Entrada
         }
         // crédito presumido do IBS/CBS (cCredPres): vem da natureza da operação no ERP; o item pode trocar
         $credPresOp = array_key_exists('credito_presumido', $op) ? self::credPres($op['credito_presumido'], 'operacao.credito_presumido', $e) : null;
-        $tipoPessoa = strtoupper((string) ($op['tipo_pessoa'] ?? 'F'));
-        if (!in_array($tipoPessoa, Matriz::TIPOS_PESSOA, true)) {
-            $e->add('operacao.tipo_pessoa', 'F (física), J (jurídica) ou E (estrangeiro)');
-        }
 
         $rateio = self::obj($in, 'rateio', $e);
         $rat = [];
@@ -179,9 +174,8 @@ final class Entrada
             $e->add('itens', 'Máximo de ' . self::MAX_ITENS . ' itens');
             $itensIn = [];
         }
-        $ctx = ['operacao' => $opCodigo, 'tipo_pessoa' => $tipoPessoa, 'uf' => (int) $modelo === 65 ? $uf : $ufDest];
         foreach ($itensIn as $i => $it) {
-            $item = self::item($it, $i, $e, $ctx);
+            $item = self::item($it, $i, $e);
             if ($item !== null) {
                 if (is_array($it) && array_key_exists('credito_presumido', $it)) {
                     $cp = self::credPres($it['credito_presumido'], "itens[$i].credito_presumido", $e);
@@ -207,7 +201,7 @@ final class Entrada
             'consumidor_final' => $bools['consumidor_final'], 'contribuinte_icms' => $bools['contribuinte_icms'],
             'desconto_iss_condicionado' => $bools['desconto_iss_condicionado'],
             'excluir_icms_base_piscofins' => $bools['excluir_icms_base_piscofins'],
-            'operacao_codigo' => $opCodigo, 'tipo_pessoa' => $tipoPessoa, 'ano' => $ano, 'data' => $data,
+            'ano' => $ano, 'data' => $data,
             'aliquotas_ibscbs' => $aliqIbs, 'municipio_operacao' => $munOp, 'itens' => $itens,
         ];
     }
@@ -249,8 +243,7 @@ final class Entrada
         return $out;
     }
 
-    /** @param array{operacao: ?string, tipo_pessoa: string, uf: string} $ctx */
-    private static function item(mixed $it, int $i, Errors $e, array $ctx): ?ItemContexto
+    private static function item(mixed $it, int $i, Errors $e): ?ItemContexto
     {
         $f = "itens[$i]";
         if (!is_array($it) || array_is_list($it)) {
@@ -259,10 +252,11 @@ final class Entrada
         }
         $antes = count($e->all());
         $permitidos = ['item', 'codigo', 'ncm', 'cest', 'servico', 'quantidade', 'valor_unitario', 'valor_total', 'desconto', 'frete',
-            'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil', 'perfil_icms', 'perfil_piscofins',
-            'cclasstrib', 'credito_presumido', 'regra'];
+            'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'cclasstrib', 'credito_presumido', 'regra'];
         foreach (array_keys($it) as $k) {
-            if (!in_array($k, $permitidos, true)) {
+            if (in_array($k, self::PERFIS_RETIRADOS, true)) {
+                $e->add("$f.$k", self::MSG_PERFIS);
+            } elseif (!in_array($k, $permitidos, true)) {
                 $e->add("$f.$k", 'Campo não permitido');
             }
         }
@@ -307,12 +301,12 @@ final class Entrada
             $pauta = self::valor($it['valor_pauta_st'], 4);
             $pauta === null ? $e->add("$f.valor_pauta_st", 'Número >= 0 com até 4 casas') : null;
         }
-        $antesRegra = count($e->all());
-        [$bruta, $aplicada] = self::resolverRegra($it, $f, $servico, $ctx, $e);
-        if (count($e->all()) > $antesRegra) {
-            return null; // regra da matriz não encontrada: não repete erros de campos da regra vazia
+        // regra fiscal do item, enviada pelo ERP; "origem" no item completa regra.icms.orig
+        $bruta = $it['regra'] ?? null;
+        if (isset($it['origem']) && is_array($bruta) && !array_is_list($bruta) && !isset($bruta['icms']['orig'])) {
+            $bruta['icms']['orig'] = $it['origem'];
         }
-        // IBS/CBS: cClassTrib do produto (o CST e a redução vêm da tabela local de cClassTrib)
+        // IBS/CBS: cClassTrib do produto (atalho para regra.ibscbs.cClassTrib)
         if (isset($it['cclasstrib']) && !$servico) {
             $cc = is_int($it['cclasstrib']) ? str_pad((string) $it['cclasstrib'], 6, '0', STR_PAD_LEFT) : $it['cclasstrib'];
             if (!is_string($cc) || !preg_match('/^\d{6}$/D', $cc)) {
@@ -332,82 +326,7 @@ final class Entrada
         $c = new ItemContexto($n, $f, $servico, $q, $vProd, $acess['desconto'], $acess['frete'], $acess['seguro'],
             $acess['outras_despesas'], $qTrib, $regra);
         $c->pautaST = $pauta;
-        $c->regraAplicada = $aplicada;
         return $c;
-    }
-
-    /**
-     * Regra do item: a da matriz (perfil_icms / perfil_piscofins + operação + UF + tipo de pessoa), com os campos
-     * de "regra" informados por cima. Trocar o CST/CSOSN na regra informada substitui o grupo inteiro da matriz.
-     * @param array<mixed> $it
-     * @param array{operacao: ?string, tipo_pessoa: string, uf: string} $ctx
-     * @return array{0: mixed, 1: ?array<string,mixed>}
-     */
-    private static function resolverRegra(array $it, string $f, bool $servico, array $ctx, Errors $e): array
-    {
-        $informada = $it['regra'] ?? null;
-        // um perfil vale para ICMS e PIS/COFINS; perfil_icms/perfil_piscofins (legado) trocam um deles
-        $pIcms = $it['perfil_icms'] ?? $it['perfil'] ?? null;
-        $pPc = $it['perfil_piscofins'] ?? $it['perfil'] ?? null;
-        $origem = $it['origem'] ?? null;
-        if ($pIcms === null && $pPc === null) {
-            if ($origem !== null && is_array($informada) && !array_is_list($informada) && !isset($informada['icms']['orig'])) {
-                $informada['icms']['orig'] = $origem;
-            }
-            return [$informada, null];
-        }
-        if ($informada !== null && (!is_array($informada) || array_is_list($informada))) {
-            $e->add("$f.regra", 'Objeto com os campos que sobrepõem a regra da matriz');
-            return [[], null];
-        }
-        if ($ctx['operacao'] === null) {
-            $e->add('operacao.codigo', 'Informe a operação (código cadastrado na matriz) para usar perfis tributários');
-            return [[], null];
-        }
-        $base = [];
-        $aplicada = ['icms' => null, 'piscofins' => null, 'sobreposicoes' => []];
-        if ($pIcms !== null && !$servico) {
-            $pIcms = is_int($pIcms) ? (string) $pIcms : $pIcms;
-            $r = is_string($pIcms) ? Matriz::regraIcms($pIcms, $ctx['operacao'], $ctx['uf'], $ctx['tipo_pessoa']) : null;
-            if ($r === null) {
-                $e->add("$f.perfil_icms", "Sem regra de ICMS para perfil " . (is_string($pIcms) ? $pIcms : '?') . ", operação {$ctx['operacao']}, UF {$ctx['uf']}, pessoa {$ctx['tipo_pessoa']}");
-            } else {
-                $base['cfop'] = $r['cfop'];
-                $base['icms'] = $r['icms'];
-                if (isset($r['ipi'])) {
-                    $base['ipi'] = $r['ipi'];
-                }
-                $aplicada['icms'] = ['perfil' => $r['perfil'], 'operacao' => $r['operacao'], 'uf' => $r['uf'], 'tipo_pessoa' => $r['tipo_pessoa'], 'descricao' => $r['descricao']];
-            }
-        }
-        if ($pPc !== null) {
-            $pPc = is_int($pPc) ? (string) $pPc : $pPc;
-            $r = is_string($pPc) ? Matriz::regraPisCofins($pPc, $ctx['operacao']) : null;
-            if ($r === null) {
-                $e->add("$f.perfil_piscofins", "Sem regra de PIS/COFINS para perfil " . (is_string($pPc) ? $pPc : '?') . ", operação {$ctx['operacao']}");
-            } else {
-                $base['pis'] = $r['pis'];
-                $base['cofins'] = $r['cofins'];
-                $aplicada['piscofins'] = ['perfil' => $r['perfil'], 'operacao' => $r['operacao'], 'descricao' => $r['descricao']];
-            }
-        }
-        foreach ($informada ?? [] as $grupo => $campos) {
-            if ($grupo === 'cfop' || !is_array($campos) || !is_array($base[$grupo] ?? null)) {
-                $base[$grupo] = $campos;
-                $aplicada['sobreposicoes'][] = (string) $grupo;
-                continue;
-            }
-            $trocaCst = (isset($campos['CST']) && (string) $campos['CST'] !== (string) ($base[$grupo]['CST'] ?? ''))
-                || (isset($campos['CSOSN']) && (string) $campos['CSOSN'] !== (string) ($base[$grupo]['CSOSN'] ?? ''));
-            $base[$grupo] = $trocaCst ? $campos : array_merge($base[$grupo], $campos);
-            foreach (array_keys($trocaCst ? ['*' => 1] : $campos) as $k) {
-                $aplicada['sobreposicoes'][] = $trocaCst ? "$grupo (CST trocado)" : "$grupo.$k";
-            }
-        }
-        if ($origem !== null && isset($base['icms']) && !isset($base['icms']['orig'])) {
-            $base['icms']['orig'] = $origem;
-        }
-        return [$base, $aplicada];
     }
 
     /** @return array<string,mixed> */

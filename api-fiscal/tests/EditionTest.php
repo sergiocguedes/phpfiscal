@@ -48,4 +48,26 @@ final class EditionTest extends TestCase
         $walk=function($node)use(&$walk,$doc){foreach($node as $k=>$v){if($k==='$ref'&&str_starts_with($v,'#/components/')){$ref=explode('/',substr($v,2));$target=$doc;foreach($ref as $part){self::assertArrayHasKey($part,$target,$v);$target=$target[$part];}}elseif(is_array($v)){$walk($v);}}};
         $walk($doc);
     }
+
+    public function testSwaggerPublicoNaoMostraRotasInternas(): void
+    {
+        $r=$this->call('GET','/openapi.yaml');
+        self::assertSame(200,$r->status);
+        $pub=json_decode($r->body,true,512,JSON_THROW_ON_ERROR);
+        $metodos=['get','put','post','delete','patch'];
+        foreach($pub['paths'] as $path=>$item){
+            self::assertDoesNotMatchRegularExpression('#^/api/v1/(admin/|empresas|tenant|chaves|tributos/|tributacao|portal/(sessao|contexto|sair))#',$path,$path);
+            foreach(array_intersect_key($item,array_flip($metodos)) as $op){self::assertArrayNotHasKey('x-interno',$op,$path);}
+        }
+        self::assertArrayHasKey('/api/v1/portal/acessos',$pub['paths']);
+        self::assertArrayHasKey('/api/v1/nfe',$pub['paths']);
+        self::assertStringNotContainsString('/api/v1/admin/',(string) json_encode($pub['info']));
+        // As rotas internas continuam existindo (documentadas no arquivo completo) e protegidas.
+        $doc=json_decode(file_get_contents(APP_ROOT.'/openapi.yaml'),true,512,JSON_THROW_ON_ERROR);
+        self::assertTrue($doc['paths']['/api/v1/admin/usuarios']['get']['x-interno']);
+        self::assertTrue($doc['paths']['/api/v1/portal/contexto']['get']['x-interno']);
+        // tributação e tabelas IBS/CBS retiradas: os códigos fiscais vêm no JSON de cada nota
+        self::assertSame([],array_values(array_filter(array_keys($doc['paths']),fn($x)=>str_starts_with($x,'/api/v1/tributacao')||str_starts_with($x,'/api/v1/admin/rtc'))));
+        self::assertContains($this->call('GET','/api/v1/admin/usuarios')->status,[401,403]);
+    }
 }
