@@ -4,11 +4,11 @@ A API aceita dois modos. Use um deles por nota.
 
 ## 1. Calculado pela API (regime normal)
 
-O sistema informa o cClassTrib de cada produto (`itens[].cclasstrib`), escolhido pela aplicação a partir do NCM e dos anexos. A API busca o CST, a redução e a vigência na tabela local de cClassTrib e as alíquotas (IBS UF, IBS municipal e CBS) na tabela de alíquotas da API, pela data e pelo município de destino (ou do emitente); alíquotas enviadas no JSON têm prioridade. O crédito presumido (`credito_presumido`: cCredPres e percentuais, da natureza da operação no ERP) gera o grupo gCredPresOper sobre a mesma base. Depois calcula IBS e CBS por item, preenche `vItem`, `IBSCBSTot` e `vNFTot` e valida o XML no XSD. Detalhes em [TRIBUTOS-CALCULO.md](TRIBUTOS-CALCULO.md), seção "IBS/CBS".
+Tudo vem do sistema no JSON da nota: o cClassTrib de cada produto (`itens[].cclasstrib` ou `regra.ibscbs.cClassTrib`), escolhido pela aplicação a partir do NCM e dos anexos (o CST são os 3 primeiros dígitos); no CST 200, a redução do cClassTrib (`regra.ibscbs.pRedIBS` e `pRedCBS`); e as alíquotas (IBS UF, IBS municipal e CBS) em `calculo_tributos.aliquotas_ibscbs`. A API não mantém tabelas de cClassTrib nem de alíquotas. O crédito presumido (`credito_presumido`: cCredPres e percentuais, da natureza da operação no ERP) gera o grupo gCredPresOper sobre a mesma base. Depois calcula IBS e CBS por item, preenche `vItem`, `IBSCBSTot` e `vNFTot` e valida o XML no XSD. Detalhes em [TRIBUTOS-CALCULO.md](TRIBUTOS-CALCULO.md), seção "IBS/CBS".
 
 - Regime normal (CRT 3). Simples Nacional e MEI: dispensados em 2026; o cálculo é ignorado com alerta até o leiaute deles ser publicado.
 - CST calculados: 000, 200, 400, 410 e 510.
-- Tabelas globais mantidas pelo administrador no painel (página Reforma tributária): alíquotas por vigência e local (nacional, UF, município do IBGE) e cClassTrib (planilha oficial ou API Conformidade Fácil da SVRS; também por `php bin/cclasstrib.php`).
+- Existência, vigência e permissão do cClassTrib no modelo são conferidas pela SEFAZ na autorização.
 - Não se aplica à NFS-e (o IBS/CBS da NFS-e continua informado, ver [NFSE-IBS-CBS.md](NFSE-IBS-CBS.md)).
 
 ## 2. Informado pelo sistema

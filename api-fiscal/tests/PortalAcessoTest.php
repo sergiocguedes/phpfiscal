@@ -17,7 +17,7 @@ final class PortalAcessoTest extends TestCase
         $r = $this->authed('POST', '/api/v1/portal/acessos', (string) json_encode($extra + [
             'perfil' => 'fiscal', 'tipo_usuario' => 'contador', 'sistema' => 'ClickPDV 5.20',
             'usuario' => ['id' => '42', 'nome' => 'Maria Contadora', 'email' => 'maria@escritorio.com.br'],
-            'abrir' => ['aba' => 'regras-icms'],
+            'abrir' => ['aba' => 'inicio'],
         ]));
         $this->assertSame(201, $r->status, $r->body);
         $d = $this->json($r);
@@ -52,7 +52,7 @@ final class PortalAcessoTest extends TestCase
         $s = $this->entrar($l['token']);
         $this->assertSame('fiscal', $s['ctx']['perfil']);
         $this->assertSame('contador', $s['ctx']['tipo_usuario']);
-        $this->assertSame('regras-icms', $s['ctx']['aba']);
+        $this->assertSame('inicio', $s['ctx']['aba']);
         $this->assertSame('Maria Contadora', $s['ctx']['usuario']['nome']);
         $this->assertTrue($s['ctx']['pode_alterar']);
 
@@ -66,6 +66,21 @@ final class PortalAcessoTest extends TestCase
         $audit = $this->auditTrail();
         $this->assertStringContainsString('portal.acesso', $audit);
         $this->assertStringContainsString('portal.sessao', $audit);
+    }
+
+    public function testAtalhoAntigoDeTributacaoAbreOInicio(): void
+    {
+        $this->configure();
+        // atalhos já distribuídos (ex.: Delphi com aba regras-icms) continuam funcionando: abrem o início
+        foreach ([['aba' => 'regras-icms'], ['aba' => 'regras-iss', 'acao' => 'alterar', 'chave' => ['codigo' => 'CURSO']], ['aba' => 'simulador']] as $a) {
+            $ctx = $this->entrar($this->link(['abrir' => $a])['token'])['ctx'];
+            $this->assertSame('inicio', $ctx['aba']);
+            $this->assertNull($ctx['rota']);
+        }
+        $r = $this->authed('POST', '/api/v1/portal/acessos', (string) json_encode(['usuario' => ['id' => '1', 'nome' => 'X'],
+            'abrir' => ['aba' => 'inicio', 'acao' => 'novo']]));
+        $this->assertSame(422, $r->status, $r->body);
+        $this->assertSame(['abrir.acao'], array_column($this->json($r)['erro']['detalhes'], 'campo'));
     }
 
     public function testLinkExpiradoOuInvalido(): void
@@ -87,23 +102,16 @@ final class PortalAcessoTest extends TestCase
         }
     }
 
-    public function testSessaoDoPortalSoAlcancaTributacaoECalculo(): void
+    public function testSessaoDoPortalSoAlcancaContextoESair(): void
     {
         $this->configure();
         $s = $this->entrar($this->link()['token']);
+        $this->assertSame(200, $this->portal($s, 'GET', '/api/v1/portal/contexto')->status);
 
-        // tributação e cálculo: permitidos (com CSRF nas alterações)
-        $cad = $this->portal($s, 'GET', '/api/v1/tributacao');
-        $this->assertSame(200, $cad->status);
-        // regime da empresa para o combo CST/CSOSN da regra de ICMS
-        $this->assertSame((int) \App\Nfe\ConfigService::get()['crt'], $this->json($cad)['crt']);
-        $r = $this->portal($s, 'PUT', '/api/v1/tributacao/perfis/1', (string) json_encode(['nome' => 'PRODUTO TRIBUTADO', 'tipo' => 'icms']));
-        $this->assertSame(200, $r->status, $r->body);
-        $r = $this->portal($s, 'PUT', '/api/v1/tributacao/perfis/2', (string) json_encode(['nome' => 'X', 'tipo' => 'icms']), false);
-        $this->assertSame('csrf_invalido', $this->json($r)['erro']['codigo']);
-        $r = $this->portal($s, 'POST', '/api/v1/tributos/calcular', (string) json_encode(['itens' => [['quantidade' => 1, 'valor_unitario' => 10,
-            'regra' => ['cfop' => '5102', 'icms' => ['orig' => 0, 'CSOSN' => '102'], 'pis' => ['CST' => '07'], 'cofins' => ['CST' => '07']]]]]));
-        $this->assertSame(200, $r->status, $r->body);
+        // a tributação foi retirada; o cálculo (pré-visualização) não é mais da sessão do portal
+        $this->assertSame(404, $this->portal($s, 'GET', '/api/v1/tributacao')->status);
+        $r = $this->portal($s, 'POST', '/api/v1/tributos/calcular', '{}');
+        $this->assertSame(403, $r->status, $r->body);
 
         // emitir, cancelar, inutilizar, configuração, certificado e novos links: bloqueados
         foreach ([['POST', '/api/v1/nfe?dry_run=1'], ['POST', '/api/v1/pdv/nfce'], ['POST', '/api/v1/inutilizar'],
@@ -122,14 +130,12 @@ final class PortalAcessoTest extends TestCase
         $this->assertSame('portal_sessao_expirada', $this->json($r)['erro']['codigo']);
     }
 
-    public function testPerfilConsultaNaoAlteraRegras(): void
+    public function testPerfilConsulta(): void
     {
         $this->configure();
         $s = $this->entrar($this->link(['perfil' => 'consulta', 'tipo_usuario' => 'cliente'])['token']);
         $this->assertFalse($s['ctx']['pode_alterar']);
-        $this->assertSame(200, $this->portal($s, 'GET', '/api/v1/tributacao/regras-icms')->status);
-        $r = $this->portal($s, 'PUT', '/api/v1/tributacao/perfis/1', (string) json_encode(['nome' => 'X', 'tipo' => 'icms']));
-        $this->assertSame(403, $r->status, $r->body);
+        $this->assertSame('consulta', $this->json($this->portal($s, 'GET', '/api/v1/portal/contexto'))['perfil']);
     }
 
     public function testPaginasDoPortal(): void

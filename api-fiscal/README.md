@@ -18,8 +18,8 @@ O painel permite cadastrar a empresa, preencher endereço/regime/numeração/CSC
 - [Reforma Tributária calculada pelo Delphi](docs/RTC-INFORMADA-DELPHI.md).
 - [Mapa completo de campos RTC](docs/RTC-CAMPOS-INFORMADOS.md).
 - [API de NFS-e](docs/NFSE.md).
-- [Cálculo de ICMS, IPI, PIS/COFINS, ISSQN e tributos aproximados](docs/TRIBUTOS-CALCULO.md): `POST /api/v1/tributos/calcular`.
-- [Portal do Contador](docs/PORTAL-CONTADOR.md): acesso sem senha pelo atalho dos sistemas (`/portal`), regras fiscais e simulador.
+- [Cálculo de ICMS, IPI, PIS/COFINS, IBS/CBS e tributos aproximados](docs/TRIBUTOS-CALCULO.md): códigos fiscais no JSON da nota (`calculo_tributos.modo` `api` ou `erp`); a API calcula no envio.
+- [Portal do Contador](docs/PORTAL-CONTADOR.md): acesso sem senha pelo atalho dos sistemas (`/portal`).
 - [Administração central, empresas e usuários permitidos](docs/ADMINISTRACAO-CENTRAL.md).
 - [VPS com PostgreSQL próprio, script de instalação e configuração cifrada no banco](docs/VPS-POSTGRESQL.md).
 - Exemplos completos na pasta `examples/`.

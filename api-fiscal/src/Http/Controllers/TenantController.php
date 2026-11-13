@@ -15,7 +15,7 @@ use App\Support\RequestContext;
 use App\Support\Validate;
 use App\Tenancy\TenantStore;
 
-/** Rotas /api/v1/tenant, /api/v1/tenant/usuarios e /api/v1/chaves */
+/** Rotas /api/v1/tenant (usada pela integração MadBuilder) e /api/v1/chaves (painel). Fora do Swagger público (x-interno). */
 final class TenantController
 {
     private static function tid(): string

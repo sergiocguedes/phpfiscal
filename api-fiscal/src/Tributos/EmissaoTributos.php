@@ -10,11 +10,14 @@ use App\Support\Logger;
 use App\Support\RequestContext;
 
 /**
- * Cálculo de tributos dentro da emissão (POST /nfe e /pdv/nfce).
+ * Cálculo de tributos dentro da emissão (POST /nfe e /pdv/nfce). Os códigos fiscais vêm sempre no JSON do ERP.
  *
- * Quando os itens trazem "regra" no lugar de "impostos", a API calcula com o mesmo motor de
- * POST /tributos/calcular e preenche itens[].impostos (e valor_aproximado_tributos) antes de montar o XML.
- * Itens só com "impostos" seguem o fluxo antigo, sem cálculo. Não é permitido misturar os dois na mesma nota.
+ * Dois modos (nota.calculo_tributos.modo; sem ele, o modo é deduzido dos itens):
+ * - "api": cada item traz "regra" (cfop, icms {CST|CSOSN, orig, alíquotas...}, pis, cofins, ipi, ibscbs, ibpt) e a API
+ *   calcula no envio, com o mesmo motor de POST /tributos/calcular, e preenche itens[].impostos (e valor_aproximado_tributos)
+ *   antes de montar o XML.
+ * - "erp": os itens trazem "impostos" com as tags já calculadas pelo ERP; a API não recalcula nada.
+ * Não é permitido misturar os dois na mesma nota.
  *
  * - Operação derivada da nota: uf_destino do endereço do destinatário (NF-e), consumidor_final,
  *   contribuinte_icms = destinatario.indicador_ie 1. Opções em nota.calculo_tributos.
@@ -22,17 +25,16 @@ use App\Support\RequestContext;
  *   for diferente (regra, valores ou leiaute mudaram), a emissão é recusada com 409 antes de numerar.
  * - Valor final informado na regra (ajuste manual) exige papel owner ou fiscal; fica no audit log e no registro.
  * - Pagamento único sem "valor" recebe o total calculado (vNF), que o sistema não conhece antes do cálculo.
- * - Perfis (perfil_icms, perfil_piscofins, origem no item; calculo_tributos.operacao): regra da matriz da empresa.
- * - IBS/CBS: cclasstrib no item e calculo_tributos.aliquotas_ibscbs {pIBSUF, pIBSMun, pCBS} informadas pelo sistema.
+ * - IBS/CBS: regra.ibscbs (ou cclasstrib) no item e calculo_tributos.aliquotas_ibscbs {pIBSUF, pIBSMun, pCBS}, informados pelo ERP.
  * - IBS/CBS calculado (regime normal) vira itens[].impostos.ibscbs, valor_item e reforma_tributaria (totais), montados e
  *   validados no XSD pelo mesmo caminho do modo informado. RTC informada pelo sistema prevalece sobre a calculada.
- *   Tipo de pessoa do destinatário (CNPJ J, CPF F, estrangeiro E). natureza_operacao padrão = nome da operação.
  */
 final class EmissaoTributos
 {
-    private const OPCOES = ['calculo_id', 'operacao', 'tipo_pessoa', 'excluir_icms_base_piscofins', 'aliquotas_ibscbs', 'credito_presumido'];
+    public const MODOS = ['api', 'erp'];
+    private const OPCOES = ['modo', 'calculo_id', 'excluir_icms_base_piscofins', 'aliquotas_ibscbs', 'credito_presumido'];
     /** Campos do item só usados no cálculo (não vão para o montador da NF-e). */
-    private const CAMPOS_CALCULO = ['regra', 'perfil', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido', 'origem', 'qtd_tributavel_unidade', 'valor_pauta_st'];
+    private const CAMPOS_CALCULO = ['regra', 'cclasstrib', 'credito_presumido', 'origem', 'qtd_tributavel_unidade', 'valor_pauta_st'];
     /** Grupos de impostos que podem vir junto com a regra (Reforma Tributária informada). */
     private const IMPOSTOS_COM_REGRA = ['ibscbs', 'is'];
 
@@ -44,26 +46,51 @@ final class EmissaoTributos
     public static function aplicar(array $nota, int $modeloPadrao, string $prefixo, bool $registrar = true): array
     {
         $itens = is_array($nota['itens'] ?? null) && array_is_list($nota['itens']) ? $nota['itens'] : [];
-        $comRegra = array_filter($itens, fn($i) => self::calculado($i));
         $opcoes = $nota['calculo_tributos'] ?? null;
         unset($nota['calculo_tributos']);
-        if ($comRegra === []) {
-            if ($opcoes !== null) {
-                throw ApiException::validation([['campo' => self::campoRaiz($prefixo, 'calculo_tributos'),
-                    'mensagem' => 'Envie a regra de cada item (itens[].regra) para a API calcular os tributos']]);
-            }
-            return [$nota, null];
-        }
         if ($opcoes !== null && (!is_array($opcoes) || ($opcoes !== [] && array_is_list($opcoes)))) {
             throw ApiException::validation([['campo' => self::campoRaiz($prefixo, 'calculo_tributos'), 'mensagem' => 'Objeto']]);
         }
         $opcoes ??= [];
         $erros = [];
-        foreach (array_keys($opcoes) as $k) {
-            if (!in_array($k, self::OPCOES, true)) {
-                $erros[] = ['campo' => self::campoRaiz($prefixo, "calculo_tributos.$k"), 'mensagem' => $k === 'metodo_desoneracao'
-                    ? 'Agora fica na regra de ICMS da matriz (metodo_desoneracao, CST 30, 40, 41, 50 e 90)' : 'Campo não permitido'];
+        foreach ($itens as $i => $it) {
+            foreach (is_array($it) ? Entrada::PERFIS_RETIRADOS : [] as $k) {
+                if (array_key_exists($k, $it)) {
+                    $erros[] = ['campo' => "{$prefixo}[$i].$k", 'mensagem' => Entrada::MSG_PERFIS];
+                }
             }
+        }
+        foreach (array_keys($opcoes) as $k) {
+            if ($k === 'operacao' || $k === 'tipo_pessoa') {
+                $erros[] = ['campo' => self::campoRaiz($prefixo, "calculo_tributos.$k"), 'mensagem' => Entrada::MSG_PERFIS];
+            } elseif (!in_array($k, self::OPCOES, true)) {
+                $erros[] = ['campo' => self::campoRaiz($prefixo, "calculo_tributos.$k"), 'mensagem' => $k === 'metodo_desoneracao'
+                    ? 'Agora fica na regra de ICMS do item (regra.icms.metodo_desoneracao, CST 30, 40, 41, 50 e 90)' : 'Campo não permitido'];
+            }
+        }
+        $modo = $opcoes['modo'] ?? null;
+        unset($opcoes['modo']);
+        if ($modo !== null && !in_array($modo, self::MODOS, true)) {
+            $erros[] = ['campo' => self::campoRaiz($prefixo, 'calculo_tributos.modo'),
+                'mensagem' => '"api" (a API calcula a partir de itens[].regra) ou "erp" (itens[].impostos já calculados pelo ERP)'];
+        }
+        if ($erros !== []) {
+            throw ApiException::validation($erros);
+        }
+        $comRegra = array_filter($itens, fn($i) => self::calculado($i));
+        $modo ??= $comRegra === [] ? 'erp' : 'api';
+        if ($modo === 'erp') {
+            // cálculo feito no ERP: as tags vêm com os valores; nada é recalculado
+            foreach ($comRegra as $i => $it) {
+                $erros[] = ['campo' => "{$prefixo}[$i].regra", 'mensagem' => 'Com calculo_tributos.modo = erp, envie itens[].impostos já calculados (sem regra)'];
+            }
+            foreach (array_keys($opcoes) as $k) {
+                $erros[] = ['campo' => self::campoRaiz($prefixo, "calculo_tributos.$k"), 'mensagem' => 'Só no cálculo pela API (calculo_tributos.modo = api, itens com regra)'];
+            }
+            if ($erros !== []) {
+                throw ApiException::validation($erros);
+            }
+            return [$nota, null];
         }
         $esperado = $opcoes['calculo_id'] ?? null;
         if ($esperado !== null && (!is_string($esperado) || !preg_match('/^calc_[0-9a-f]{32}$/D', $esperado))) {
@@ -74,7 +101,7 @@ final class EmissaoTributos
         foreach ($itens as $i => $it) {
             $f = "{$prefixo}[$i]";
             if (!self::calculado($it)) {
-                $erros[] = ['campo' => "$f.regra", 'mensagem' => 'Com cálculo pela API, informe perfis ou regra em todos os itens (não misture com itens só com impostos)'];
+                $erros[] = ['campo' => "$f.regra", 'mensagem' => 'Com cálculo pela API (calculo_tributos.modo = api), envie a regra fiscal em todos os itens (não misture com itens só com impostos)'];
                 continue;
             }
             $extras = array_diff(array_keys(is_array($it['impostos'] ?? null) ? $it['impostos'] : []), self::IMPOSTOS_COM_REGRA);
@@ -92,7 +119,7 @@ final class EmissaoTributos
             if ($regra !== null) {
                 $e['regra'] = $regra;
             }
-            foreach (['desconto', 'frete', 'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'perfil', 'perfil_icms', 'perfil_piscofins', 'cclasstrib', 'credito_presumido'] as $k) {
+            foreach (['desconto', 'frete', 'seguro', 'outras_despesas', 'qtd_tributavel_unidade', 'valor_pauta_st', 'origem', 'cclasstrib', 'credito_presumido'] as $k) {
                 if (isset($it[$k]) || ($k === 'credito_presumido' && array_key_exists($k, $it))) {
                     $e[$k] = $it[$k];
                 }
@@ -123,11 +150,6 @@ final class EmissaoTributos
                 $operacao[$k] = $opcoes[$k];
             }
         }
-        if (array_key_exists('operacao', $opcoes)) {
-            $operacao['codigo'] = $opcoes['operacao'];
-        }
-        // tipo de pessoa da matriz: do destinatário (CNPJ → J, CPF → F, estrangeiro → E), salvo se informado
-        $operacao['tipo_pessoa'] = $opcoes['tipo_pessoa'] ?? (isset($dest['cnpj']) ? 'J' : (isset($dest['id_estrangeiro']) ? 'E' : 'F'));
         try {
             $calc = CalculadoraTributos::calcular(['modelo' => $modelo, 'operacao' => $operacao, 'itens' => $entradaItens], ConfigService::get());
         } catch (ApiException $ex) {
@@ -187,13 +209,6 @@ final class EmissaoTributos
                 'vNFTot' => Dec::fixo(Dec::de($calc['totais']['vNFTot']) ?? '0', 2),
             ]];
         }
-        // natureza da operação: o nome da operação da matriz, quando a nota não informa
-        if (!isset($nota['natureza_operacao']) && $calc['operacao']['codigo'] !== null) {
-            $nome = array_values(array_filter(Matriz::cadastro()['operacoes'], fn($o) => $o['codigo'] === $calc['operacao']['codigo']))[0]['nome'] ?? null;
-            if ($nome !== null) {
-                $nota['natureza_operacao'] = mb_substr($nome, 0, 60);
-            }
-        }
         // o total só é conhecido depois do cálculo (ST, IPI, desoneração): pagamento único sem valor recebe o vNF
         $pag = $nota['pagamentos'] ?? null;
         if (is_array($pag) && array_is_list($pag) && count($pag) === 1 && is_array($pag[0]) && !array_key_exists('valor', $pag[0])) {
@@ -229,7 +244,7 @@ final class EmissaoTributos
     /** @param mixed $i */
     private static function calculado($i): bool
     {
-        return is_array($i) && (array_key_exists('regra', $i) || array_key_exists('perfil', $i) || array_key_exists('perfil_icms', $i) || array_key_exists('perfil_piscofins', $i));
+        return is_array($i) && array_key_exists('regra', $i);
     }
 
     private static function remapear(ApiException $ex, string $prefixo): ApiException
@@ -240,11 +255,6 @@ final class EmissaoTributos
         $det = array_map(function ($d) use ($prefixo) {
             if (is_array($d) && isset($d['campo']) && is_string($d['campo'])) {
                 $d['campo'] = preg_replace('/^itens(?=\[|$)/', $prefixo, $d['campo']);
-                $d['campo'] = match ($d['campo']) {
-                    'operacao.codigo' => self::campoRaiz($prefixo, 'calculo_tributos.operacao'),
-                    'operacao.tipo_pessoa' => self::campoRaiz($prefixo, 'calculo_tributos.tipo_pessoa'),
-                    default => $d['campo'],
-                };
             }
             return $d;
         }, $ex->details);

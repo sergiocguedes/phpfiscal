@@ -232,7 +232,7 @@ final class NfseTest extends TestCase
         $xml = $d['xml'];
         $this->assertStringContainsString('<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">', $xml);
         $this->assertStringContainsString('<tpAmb>2</tpAmb>', $xml);
-        $this->assertStringContainsString('<prest><CNPJ>11222333000181</CNPJ><IM>12345678</IM><regTrib><opSimpNac>3</opSimpNac><regApTribSN>1</regApTribSN><regEspTrib>0</regEspTrib></regTrib></prest>', $xml, 'prestador emitente sem xNome/end (E0121/E0128)');
+        $this->assertStringContainsString('<prest><CNPJ>11222333000181</CNPJ><IM>000000012345678</IM><regTrib><opSimpNac>3</opSimpNac><regApTribSN>1</regApTribSN><regEspTrib>0</regEspTrib></regTrib></prest>', $xml, 'prestador emitente sem xNome/end (E0121/E0128)');
         $this->assertStringContainsString('<toma><CPF>52998224725</CPF><xNome>Maria da Silva</xNome><email>maria@example.com</email></toma>', $xml);
         $this->assertStringContainsString('<cTribNac>080201</cTribNac>', $xml);
         $this->assertStringContainsString('<cNBS>122051900</cNBS>', $xml);
@@ -247,17 +247,12 @@ final class NfseTest extends TestCase
         $this->assertSame(0, $this->semRede());
     }
 
-    public function testRegraDeIssPreencheServicoEValores(): void
+    public function testCodigosFiscaisDoServicoVemNoJson(): void
     {
         $this->configure();
         $this->configNfse(['retencao_iss' => 2]); // retenção vem da empresa
-        $r = $this->authed('PUT', '/api/v1/tributacao/regras-iss/CURSO', (string) json_encode(['descricao' => 'Curso retido',
-            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
-            'iss' => ['aliquota_iss' => 2.5]]));
-        $this->assertSame(200, $r->status, $r->body);
-
-        $p = ['regra_iss' => 'CURSO', 'servico' => ['descricao' => 'Curso online'],
-            'tomador' => ['cpf' => '52998224725', 'nome' => 'Maria da Silva'], 'valores' => ['servico' => 1000]];
+        $p = ['servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900', 'descricao' => 'Curso online'],
+            'tomador' => ['cpf' => '52998224725', 'nome' => 'Maria da Silva'], 'valores' => ['servico' => 1000, 'aliquota_iss' => 2.5]];
         $r = $this->dry($p);
         $this->assertSame(200, $r->status, $r->body);
         $d = $this->json($r);
@@ -266,18 +261,20 @@ final class NfseTest extends TestCase
         $this->assertStringContainsString('<cNBS>122051900</cNBS>', $d['xml']);
         $this->assertStringContainsString('<tpRetISSQN>2</tpRetISSQN>', $d['xml']);
         $this->assertStringContainsString('<pAliq>2.50</pAliq>', $d['xml']);
-        $this->assertSame(['codigo' => 'CURSO', 'descricao' => 'Curso retido'], $d['regra_iss']);
+        $this->assertArrayNotHasKey('regra_iss', $d);
 
-        // o que vem no JSON prevalece sobre a regra
+        // o que vem no JSON prevalece sobre o cadastro da empresa
         $p['valores']['retencao_iss'] = 1;
         $d = $this->json($this->dry($p));
         $this->assertStringContainsString('<tpRetISSQN>1</tpRetISSQN>', $d['xml']);
         $this->assertStringNotContainsString('<pAliq>', $d['xml'], 'ME/EPP sem retenção: alíquota não vai na DPS');
 
-        $p['regra_iss'] = 'NAO-EXISTE';
+        // regras de ISS cadastradas foram retiradas
+        $p['regra_iss'] = 'CURSO';
         $r = $this->dry($p);
         $this->assertSame(422, $r->status);
         $this->assertContains('regra_iss', array_column($this->json($r)['erro']['detalhes'], 'campo'));
+        $this->assertSame(404, $this->authed('GET', '/api/v1/tributacao/regras-iss')->status);
         $this->assertSame(1, $this->json($this->authed('GET', '/api/v1/nfse/config'))['proximo_numero']);
     }
 
@@ -290,10 +287,8 @@ final class NfseTest extends TestCase
         $c = $this->json($this->authed('GET', '/api/v1/nfse/config'));
         $this->assertSame(2, $c['retencao_iss']);
         $this->assertSame(['tipo' => 1, 'numero_processo' => str_repeat('1', 30)], $c['suspensao']);
-        $this->authed('PUT', '/api/v1/tributacao/regras-iss/CURSO', (string) json_encode(['descricao' => 'Curso',
-            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'], 'iss' => ['aliquota_iss' => 2]]));
-        $p = ['regra_iss' => 'CURSO', 'servico' => ['descricao' => 'Curso'], 'tomador' => ['cpf' => '52998224725', 'nome' => 'Maria'],
-            'valores' => ['servico' => 100]];
+        $p = ['servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900', 'descricao' => 'Curso'],
+            'tomador' => ['cpf' => '52998224725', 'nome' => 'Maria'], 'valores' => ['servico' => 100, 'aliquota_iss' => 2]];
         $d = $this->json($this->dry($p));
         $this->assertTrue($d['valida'], implode("\n", $d['erros_schema']));
         $this->assertStringContainsString('<tpRetISSQN>2</tpRetISSQN>', $d['xml']);
@@ -315,19 +310,15 @@ final class NfseTest extends TestCase
         }
     }
 
-    public function testRegraDeIssCalculaTributosFederaisComoNoClickPdv(): void
+    public function testFederaisEmPercentuaisSaoCalculadosNoEnvio(): void
     {
         $this->configure();
         $this->configNfse(['opcao_simples_nacional' => 1, 'regime_apuracao_sn' => null]);
-        $r = $this->authed('PUT', '/api/v1/tributacao/regras-iss/CONSULT', (string) json_encode(['descricao' => 'Consultoria PJ',
-            'tipo_pessoa' => 'J', 'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
-            'iss' => ['aliquota_iss' => 2],
+        $p = ['servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900', 'descricao' => 'Consultoria'],
+            'tomador' => ['cnpj' => '11444777000161', 'nome' => 'Cliente PJ'],
+            'valores' => ['servico' => 1000, 'desconto_incondicionado' => 100, 'aliquota_iss' => 2],
             'federais' => ['cst_pis_cofins' => '01', 'aliquota_pis' => 0.65, 'aliquota_cofins' => 3, 'aliquota_irrf' => 1.5,
-                'aliquota_csll' => 1, 'tipo_retencao' => 3],
-            'ibs_cbs' => ['indicador_operacao' => '100301', 'classificacao_tributaria' => '000001', 'operacao_onerosa' => true, 'servico_exterior' => false]]));
-        $this->assertSame(200, $r->status, $r->body);
-        $p = ['regra_iss' => 'CONSULT', 'servico' => ['descricao' => 'Consultoria'],
-            'tomador' => ['cnpj' => '11444777000161', 'nome' => 'Cliente PJ'], 'valores' => ['servico' => 1000, 'desconto_incondicionado' => 100]];
+                'aliquota_csll' => 1, 'tipo_retencao' => 3]];
         $r = $this->dry($p);
         $this->assertSame(200, $r->status, $r->body);
         $d = $this->json($r);
@@ -338,17 +329,27 @@ final class NfseTest extends TestCase
             '<vRetCSLL>41.85</vRetCSLL>'] as $tag) {
             $this->assertStringContainsString($tag, $d['xml']);
         }
-        // tipo 8 (só CSLL retido) e tributos_federais do JSON prevalecem
-        $this->authed('PUT', '/api/v1/tributacao/regras-iss/CONSULT', (string) json_encode(['descricao' => 'Consultoria PJ',
-            'servico' => ['codigo_tributacao_nacional' => '080201', 'nbs' => '122051900'],
-            'federais' => ['cst_pis_cofins' => '01', 'aliquota_pis' => 0.65, 'aliquota_cofins' => 3, 'aliquota_csll' => 1, 'tipo_retencao' => 8]]));
+        // tipo 8: só a CSLL retida
+        $p['federais'] = ['cst_pis_cofins' => '01', 'aliquota_pis' => 0.65, 'aliquota_cofins' => 3, 'aliquota_csll' => 1, 'tipo_retencao' => 8];
         $d = $this->json($this->dry($p));
         $this->assertStringContainsString('<vRetCSLL>9.00</vRetCSLL>', $d['xml']);
         $this->assertStringNotContainsString('<vRetIRRF>', $d['xml']);
+        // ou a API calcula (federais), ou o ERP manda os valores (tributos_federais): os dois juntos é recusado
         $p['tributos_federais'] = ['pis_cofins' => ['cst' => '08', 'tipo_retencao' => 0]];
+        $r = $this->dry($p);
+        $this->assertSame(422, $r->status);
+        $this->assertContains('federais', array_column($this->json($r)['erro']['detalhes'], 'campo'));
+        unset($p['federais']);
         $d = $this->json($this->dry($p));
         $this->assertStringContainsString('<CST>08</CST>', $d['xml']);
         $this->assertStringNotContainsString('<vRetCSLL>', $d['xml']);
+        // validação dos percentuais
+        $p['federais'] = ['aliquota_pis' => 101, 'tipo_retencao' => 12, 'outro' => 1];
+        unset($p['tributos_federais']);
+        $campos = array_column($this->json($this->dry($p))['erro']['detalhes'], 'campo');
+        foreach (['federais.cst_pis_cofins', 'federais.aliquota_pis', 'federais.tipo_retencao', 'federais.outro'] as $c) {
+            $this->assertContains($c, $campos);
+        }
         $this->assertSame(1, $this->json($this->authed('GET', '/api/v1/nfse/config'))['proximo_numero']);
     }
 

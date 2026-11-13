@@ -68,10 +68,11 @@ td.actions{text-align:right;white-space:nowrap}
 .stat b{display:block;font-size:26px;letter-spacing:-.02em}
 .stat span{color:var(--muted);font-size:13px}
 .quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-.quick a{display:block;border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel);color:var(--ink)}
+.quick a,.quick .soon-card{display:block;border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel);color:var(--ink)}
 .quick a:hover{border-color:#c7d2fe;text-decoration:none;box-shadow:var(--shadow)}
 .quick strong{display:block;margin-bottom:4px}
 .quick span{color:var(--muted);font-size:13px}
+.quick .soon-card{opacity:.75}
 
 /* forms */
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}

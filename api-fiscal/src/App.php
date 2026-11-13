@@ -54,14 +54,6 @@ final class App {
         $r->add('GET', "$p/admin/usuarios", [$a,'users'], $admin);
         $r->add('POST', "$p/admin/usuarios", [$a,'createUser'], $admin);
         $r->add('PUT', "$p/admin/usuarios/{id}", [$a,'updateUser'], $admin);
-        $tr=\App\Http\Controllers\TributacaoController::class;
-        $r->add('GET', "$p/admin/rtc/aliquotas", [$tr,'aliquotasIbsCbs'], $admin);
-        $r->add('POST', "$p/admin/rtc/aliquotas", [$tr,'salvarAliquotaIbsCbs'], $admin);
-        $r->add('PUT', "$p/admin/rtc/aliquotas/{id}", [$tr,'salvarAliquotaIbsCbs'], $admin);
-        $r->add('DELETE', "$p/admin/rtc/aliquotas/{id}", [$tr,'excluirAliquotaIbsCbs'], $admin);
-        $r->add('GET', "$p/admin/rtc/municipios", [$tr,'municipios'], $admin);
-        $r->add('GET', "$p/admin/rtc/cclasstrib", [$tr,'cclasstrib'], $admin);
-        $r->add('POST', "$p/admin/rtc/cclasstrib", [$tr,'importarCClassTrib'], $admin);
         $r->add('GET', "$p/admin/chaves", [$a,'keys'], $admin);
         $r->add('GET', "$p/admin/armazenamento", [$a,'storage'], $admin);
         $r->add('GET', "$p/admin/config", [$a,'apiConfig'], $admin);
@@ -109,38 +101,13 @@ final class App {
         $r->add('POST', "$p/nfe/{chave}/cce", [$this, 'cce'], $fiscal);
         $r->add('POST', "$p/inutilizar", [$this, 'inutilizar'], $fiscal);
         $portal = ['portal' => true];
-        $r->add('POST', "$p/tributos/calcular", [\App\Http\Controllers\TributosController::class, 'calcular'], $portal);
+        // pré-visualização do cálculo (interno, fora do Swagger): mesma regra do item usada na emissão
+        $r->add('POST', "$p/tributos/calcular", [\App\Http\Controllers\TributosController::class, 'calcular'], []);
         $pc = \App\Http\Controllers\PortalController::class;
         $r->add('POST', "$p/portal/acessos", [$pc, 'criarAcesso'], $owner);
         $r->add('POST', "$p/portal/sessao", [$pc, 'sessao'], ['public' => true]);
         $r->add('GET', "$p/portal/contexto", [$pc, 'contexto'], $portal);
         $r->add('POST', "$p/portal/sair", [$pc, 'sair'], $portal);
-        $t = \App\Http\Controllers\TributacaoController::class;
-        $r->add('GET', "$p/tributacao", [$t, 'cadastro'], $portal);
-        $r->add('POST', "$p/tributacao/perfis", [$t, 'criarPerfil'], $owner + $portal);
-        $r->add('PUT', "$p/tributacao/perfis/{codigo}", [$t, 'salvarPerfil'], $owner + $portal);
-        $r->add('DELETE', "$p/tributacao/perfis/{codigo}", [$t, 'excluirPerfil'], $owner + $portal);
-        $r->add('POST', "$p/tributacao/operacoes", [$t, 'criarOperacao'], $owner + $portal);
-        $r->add('PUT', "$p/tributacao/operacoes/{codigo}", [$t, 'salvarOperacao'], $owner + $portal);
-        $r->add('DELETE', "$p/tributacao/operacoes/{codigo}", [$t, 'excluirOperacao'], $owner + $portal);
-        $r->add('GET', "$p/tributacao/regras-icms", [$t, 'listarIcms'], $portal);
-        $r->add('POST', "$p/tributacao/regras-icms/copiar", [$t, 'copiarIcms'], $owner + $portal);
-        $r->add('GET', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'detalheIcms'], $portal);
-        $r->add('PUT', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'salvarIcms'], $owner + $portal);
-        $r->add('DELETE', "$p/tributacao/regras-icms/{perfil}/{operacao}/{uf}/{tipo_pessoa}", [$t, 'excluirIcms'], $owner + $portal);
-        $r->add('GET', "$p/tributacao/regras-piscofins", [$t, 'listarPisCofins'], $portal);
-        $r->add('POST', "$p/tributacao/regras-piscofins/copiar", [$t, 'copiarPisCofins'], $owner + $portal);
-        $r->add('GET', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'detalhePisCofins'], $portal);
-        $r->add('PUT', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'salvarPisCofins'], $owner + $portal);
-        $r->add('DELETE', "$p/tributacao/regras-piscofins/{perfil}/{operacao}", [$t, 'excluirPisCofins'], $owner + $portal);
-        $r->add('GET', "$p/tributacao/cclasstrib", [$t, 'cclasstrib'], $portal);
-        $r->add('GET', "$p/tributacao/regras-iss", [$t, 'listarIss'], $portal);
-        $r->add('POST', "$p/tributacao/regras-iss", [$t, 'criarIss'], $owner + $portal);
-        $r->add('POST', "$p/tributacao/regras-iss/copiar", [$t, 'copiarIss'], $owner + $portal);
-        $r->add('GET', "$p/tributacao/regras-iss/{codigo}", [$t, 'detalheIss'], $portal);
-        $r->add('PUT', "$p/tributacao/regras-iss/{codigo}", [$t, 'salvarIss'], $owner + $portal);
-        $r->add('DELETE', "$p/tributacao/regras-iss/{codigo}", [$t, 'excluirIss'], $owner + $portal);
-        $r->add('POST', "$p/tributacao/importar", [$t, 'importar'], $owner + $portal);
         $r->add('GET', "$p/nfse/config", [NfseController::class, 'getConfig'], []);
         $r->add('PUT', "$p/nfse/config", [NfseController::class, 'putConfig'], $owner);
         $r->add('GET', "$p/nfse/parametros", [NfseController::class, 'parametros']);
@@ -298,7 +265,8 @@ final class App {
 
     public function openapi(): Response
     {
-        return new Response(200, (string) file_get_contents(APP_ROOT . '/openapi.yaml'), [
+        // Só a parte pública: rotas marcadas "x-interno" (telas da própria API) ficam fora do Swagger.
+        return new Response(200, \App\Http\OpenApiPublico::gerar((string) file_get_contents(APP_ROOT . '/openapi.yaml')), [
             'Content-Type' => 'application/yaml; charset=utf-8',
             'Cache-Control' => 'no-cache',
         ]);

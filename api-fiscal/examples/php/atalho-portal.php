@@ -28,7 +28,7 @@ function abrirPortalFiscal(array $usuario, string $perfil = 'fiscal', string $ti
         ]),
         'perfil' => $perfil,             // fiscal (altera regras) | consulta (somente leitura)
         'tipo_usuario' => $tipoUsuario,  // cliente | contador
-        'abrir' => ['aba' => $aba],      // inicio, perfis, operacoes, regras-icms, regras-piscofins, simulador
+        'abrir' => ['aba' => $aba],      // inicio (abas antigas da tributação abrem o início)
         'sistema' => 'MadBuilder',
     ];
 
@@ -58,4 +58,4 @@ function abrirPortalFiscal(array $usuario, string $perfil = 'fiscal', string $ti
 }
 
 // Exemplo: botão "Portal Fiscal" do sistema
-// abrirPortalFiscal(['id' => 42, 'nome' => 'Maria Souza', 'email' => 'maria@empresa.com.br'], 'fiscal', 'cliente', 'regras-icms');
+// abrirPortalFiscal(['id' => 42, 'nome' => 'Maria Souza', 'email' => 'maria@empresa.com.br'], 'fiscal', 'cliente', 'inicio');

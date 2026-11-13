@@ -11,8 +11,9 @@ use App\Support\Errors;
  *
  * Base (regra UB16-10): vProd + vFrete + vSeg + vOutro + vII − vDesc − vPIS − vCOFINS − vICMS − vICMSUFDest − vFCP
  *   − vFCPUFDest − vICMSMono − vISSQN (DIFAL e ISSQN não existem nesta versão; II não se aplica na saída).
- * Alíquotas (IBS UF, IBS município, CBS): informadas pelo sistema na operação (operacao.aliquotas_ibscbs).
- * Redução do cClassTrib (pRedIBS, pRedCBS) e vigência: da tabela local (TabelaCClassTrib).
+ * Alíquotas (IBS UF, IBS município, CBS): informadas pelo ERP na operação (operacao.aliquotas_ibscbs).
+ * cClassTrib, CST e redução do cClassTrib (pRedIBS, pRedCBS, CST 200): informados pelo ERP na regra do item.
+ * A API não mantém tabela de cClassTrib nem de alíquotas: confere só o formato e a coerência CST × cClassTrib.
  * Alíquota efetiva com redução: p × (1 − pRed/100), com 4 casas. Valor: base × alíquota, com 2 casas.
  * Diferimento (CST 510): vDif = base × alíquota × pDif; o valor do tributo é o calculado menos o diferido.
  * vItem (regra VB01-10): vProd − vDesc − vICMSDeson (se deduz) + vICMSST + vFCPST + vFrete + vSeg + vOutro + vIPI;
@@ -29,16 +30,16 @@ final class IbsCbs
     private const COM_VALORES = ['000', '200', '510'];
 
     /**
-     * Valida o grupo ibscbs da regra (matriz ou item). Devolve o grupo normalizado.
+     * Valida o grupo ibscbs da regra do item. Devolve o grupo normalizado.
      * @param array<string,mixed> $g
      * @return array<string,mixed>
      */
     public static function validar(array $g, string $f, Errors $e): array
     {
         $cc = (string) ($g['cClassTrib'] ?? '');
-        // o CST vem da tabela local (ou dos 3 primeiros dígitos do cClassTrib); informar é opcional
+        // o CST são os 3 primeiros dígitos do cClassTrib; informar é opcional
         if (!isset($g['CST']) && preg_match('/^\d{6}$/D', $cc)) {
-            $g['CST'] = TabelaCClassTrib::item($cc)['CST'] ?? substr($cc, 0, 3);
+            $g['CST'] = substr($cc, 0, 3);
         }
         $cst = (string) ($g['CST'] ?? '');
         if (!preg_match('/^\d{6}$/D', $cc)) {
@@ -58,12 +59,16 @@ final class IbsCbs
         } elseif (substr($cc, 0, 3) !== $cst) {
             $e->add("$f.cClassTrib", "Os 3 primeiros dígitos do cClassTrib ($cc) devem ser o CST ($cst)");
         }
-        if (preg_match('/^\d{6}$/D', $cc) && substr($cc, 0, 3) === $cst) {
-            $t = TabelaCClassTrib::tabela();
-            if ($t === null) {
-                $e->add("$f.cClassTrib", 'Tabela local de cClassTrib não carregada (o administrador da API importa com bin/cclasstrib.php)');
-            } elseif (!isset($t['itens'][$cc])) {
-                $e->add("$f.cClassTrib", "cClassTrib $cc não existe na tabela local (versão " . ($t['versao'] ?? '?') . ')');
+        // redução da alíquota (CST 200): percentuais do cClassTrib, enviados pelo ERP
+        if ($cst === '200') {
+            if (!isset($g['pRedIBS']) && !isset($g['pRedCBS'])) {
+                $e->add("$f.pRedIBS", 'CST 200: informe pRedIBS e pRedCBS (percentual de redução do cClassTrib)');
+            }
+        } else {
+            foreach (['pRedIBS', 'pRedCBS'] as $k) {
+                if (isset($g[$k])) {
+                    $e->add("$f.$k", 'Redução da alíquota só no CST 200');
+                }
             }
         }
         if ($cst === '510') {
@@ -79,7 +84,7 @@ final class IbsCbs
     /**
      * @param array<string,mixed> $imp impostos já calculados do item (icms, ipi, pis, cofins)
      * @param array{pIBSUF:string, pIBSMun:string, pCBS:string} $aliq alíquotas informadas pelo sistema
-     * @param array<string,mixed> $classe item da tabela local de cClassTrib
+     * @param array<string,mixed> $classe cClassTrib e redução (pRedIBS, pRedCBS) informados na regra do item
      * @return array{grupo: array<string,mixed>, vBC: string, vIBSUF: string, vIBSMun: string, vCBS: string,
      *   vDifUF: string, vDifMun: string, vDifCBS: string, comValores: bool}
      */
@@ -101,7 +106,7 @@ final class IbsCbs
         foreach (['gIBSUF' => ['IBSUF', 'pIBSUF', 'vIBSUF', 'pRedIBS'], 'gIBSMun' => ['IBSMun', 'pIBSMun', 'vIBSMun', 'pRedIBS'],
             'gCBS' => ['CBS', 'pCBS', 'vCBS', 'pRedCBS']] as $tag => [$k, $pTag, $vTag, $redK]) {
             $p = $aliq[$pTag];
-            // redução só no CST 200, pelo percentual da tabela oficial do cClassTrib
+            // redução só no CST 200, pelo percentual do cClassTrib informado pelo ERP
             $pRed = $cst === '200' ? Dec::de($classe[$redK] ?? 0) : null;
             $g = [$pTag => Dec::fixo($p, 4)];
             $pEf = $p;

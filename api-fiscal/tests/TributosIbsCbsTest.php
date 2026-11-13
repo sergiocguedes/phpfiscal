@@ -5,34 +5,19 @@ declare(strict_types=1);
 namespace Tests;
 
 use App\Nfe\SefazClient;
-use App\Tributos\TabelaCClassTrib;
 use Tests\Support\FakeTools;
 use Tests\Support\TestCert;
 
 /**
  * IBS/CBS calculado pela API (NT 2025.002-RTC) na NF-e e na NFC-e. Valores conferidos à mão.
- * Alíquotas informadas pelo sistema (2026: IBS UF 0,10%, IBS municipal 0%, CBS 0,90%); redução pela tabela local de cClassTrib.
+ * Tudo vem do ERP no JSON: alíquotas (2026: IBS UF 0,10%, IBS municipal 0%, CBS 0,90%), cClassTrib e, no CST 200, a redução
+ * do cClassTrib (pRedIBS, pRedCBS). A API não mantém tabelas de alíquotas nem de cClassTrib.
  * Base = vProd − desconto − PIS − COFINS − ICMS − FCP.
  */
 final class TributosIbsCbsTest extends TestCase
 {
     private const ALIQ_2026 = ['pIBSUF' => 0.1, 'pIBSMun' => 0, 'pCBS' => 0.9];
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        TabelaCClassTrib::importarLinhas([
-            ['CST-IBS/CBS' => '000', 'cClassTrib' => '000001', 'Nome cClassTrib' => 'Tributação integral', 'pRedIBS' => '0,00', 'pRedCBS' => '0,00', 'dIniVig' => '01/01/2026'],
-            ['CST-IBS/CBS' => '200', 'cClassTrib' => '200034', 'Nome cClassTrib' => 'Alimentos (Anexo I)', 'pRedIBS' => '60,00', 'pRedCBS' => '60,00'],
-            ['CST-IBS/CBS' => '200', 'cClassTrib' => '200013', 'Nome cClassTrib' => 'Redução de 100%', 'pRedIBS' => '100', 'pRedCBS' => '100'],
-            ['CST-IBS/CBS' => '400', 'cClassTrib' => '400001', 'Nome cClassTrib' => 'Isenção'],
-            ['CST-IBS/CBS' => '410', 'cClassTrib' => '410001', 'Nome cClassTrib' => 'Imunidade'],
-            ['CST-IBS/CBS' => '510', 'cClassTrib' => '510001', 'Nome cClassTrib' => 'Diferimento'],
-            ['CST-IBS/CBS' => '000', 'cClassTrib' => '000002', 'Nome cClassTrib' => 'Encerrado', 'dFimVig' => '2026-06-30'],
-            ['CST-IBS/CBS' => '410', 'cClassTrib' => '410014', 'Nome cClassTrib' => 'Produtor rural não contribuinte', 'ind_gCredPresOper' => '1'],
-            ['CST-IBS/CBS' => '000', 'cClassTrib' => '000003', 'Nome cClassTrib' => 'Sem crédito presumido', 'ind_gCredPresOper' => '0'],
-        ], 'teste', 'IT-teste');
-    }
     /** @param array<mixed> $body @return array<mixed> */
     private function calc(array $body, int $status = 200): array
     {
@@ -113,8 +98,8 @@ final class TributosIbsCbsTest extends TestCase
     public function testReducaoDiferimentoIsencaoEImunidade(): void
     {
         $r = $this->calc($this->venda([
-            // CST 200, cClassTrib 200034 (tabela: redução de 60%): base 100 − ICMS 18 = 82; IBS UF 0,04% → 0,03; CBS 0,36% → 0,30
-            $this->item(['CST' => '200', 'cClassTrib' => '200034']),
+            // CST 200, cClassTrib 200034 (redução de 60% informada pelo ERP): base 100 − ICMS 18 = 82; IBS UF 0,04% → 0,03; CBS 0,36% → 0,30
+            $this->item(['CST' => '200', 'cClassTrib' => '200034', 'pRedIBS' => 60, 'pRedCBS' => 60]),
             // CST 510 diferimento 100% (ICMS isento): base 100; IBS UF 0,10 diferido; CBS 0,90 diferido
             $this->item(['CST' => '510', 'cClassTrib' => '510001', 'pDif' => 100], ['orig' => 0, 'CST' => '40']),
             // CST 410: só CST e cClassTrib, sem valores
@@ -153,164 +138,100 @@ final class TributosIbsCbsTest extends TestCase
         $this->assertCampoComErro($d, 'itens[1].cclasstrib');
     }
 
-    public function testAliquotasDaTabelaDaApiPorMunicipioUfENacional(): void
+    public function testAliquotasSempreInformadasNoJson(): void
     {
         $item = $this->item(['CST' => '000', 'cClassTrib' => '000001']);
         $venda = fn(string $data, ?string $mun = null, ?array $aliq = null) => ['modelo' => 55, 'emitente' => ['crt' => 3, 'uf' => 'AM', 'codigo_municipio' => '1302603'],
             'operacao' => ['data' => $data] + ($mun ? ['municipio_destino' => $mun] : []) + ($aliq ? ['aliquotas_ibscbs' => $aliq] : []), 'itens' => [$item]];
 
-        // sem JSON e sem linha gravada: alíquota de teste de 2026 da lei
-        $r = $this->calc($venda('2026-11-09'));
-        $this->assertSame(['tipo' => 'lei', 'id' => 'LC214-2026'], array_intersect_key($r['ibscbs']['origem_aliquotas'], ['tipo' => 1, 'id' => 1]));
-        $this->assertSame('1302603', $r['ibscbs']['municipio'], 'sem destino: município do emitente');
+        // sem alíquotas no JSON: recusa (a API não tem tabela de alíquotas)
+        $d = $this->calc($venda('2026-11-09'), 422);
+        $this->assertCampoComErro($d, 'operacao.aliquotas_ibscbs');
 
-        // tabela: nacional 2027, UF AM e município de Manaus
-        \App\Tributos\AliquotasIbsCbs::salvar(null, ['abrangencia' => 'nacional', 'inicio' => '2027-01-01', 'pIBSUF' => 0.05, 'pIBSMun' => 0.05, 'pCBS' => 8.8]);
-        \App\Tributos\AliquotasIbsCbs::salvar(null, ['abrangencia' => 'uf', 'uf' => 'AM', 'inicio' => '2027-01-01', 'pIBSUF' => 0.06, 'pIBSMun' => 0.05, 'pCBS' => 8.8]);
-        $man = \App\Tributos\AliquotasIbsCbs::salvar(null, ['abrangencia' => 'municipio', 'codigo_municipio' => '1302603', 'inicio' => '2027-01-01',
-            'pIBSUF' => 0.06, 'pIBSMun' => 0.07, 'pCBS' => 8.8]);
-        $this->assertSame('Manaus', $man['municipio']);
-        $g = fn(array $r) => [$r['ibscbs']['aliquotas']['pIBSUF'], $r['ibscbs']['aliquotas']['pIBSMun'], $r['ibscbs']['origem_aliquotas']['abrangencia']];
-        $this->assertSame([0.06, 0.07, 'municipio'], $g($this->calc($venda('2027-01-04'))));                // emitente Manaus
-        $this->assertSame([0.06, 0.05, 'uf'], $g($this->calc($venda('2027-01-04', '1303403'))));           // destino Parintins/AM
-        $this->assertSame([0.05, 0.05, 'nacional'], $g($this->calc($venda('2027-01-04', '3550308'))));     // destino São Paulo
+        $r = $this->calc($venda('2026-11-09', null, self::ALIQ_2026));
+        $this->assertSame(['tipo' => 'informada'], $r['ibscbs']['origem_aliquotas']);
+        $this->assertSame('1302603', $r['ibscbs']['municipio'], 'sem destino: município do emitente');
+        $this->assertSame('3550308', $this->calc($venda('2026-11-09', '3550308', self::ALIQ_2026))['ibscbs']['municipio']);
+
         // 2027 soma IBS/CBS no vItem: base 82; UF 0,05 → 0,04; mun 0,05 → 0,04; CBS 8,8 → 7,22
-        $r = $this->calc($venda('2027-01-04', '3550308'));
+        $r = $this->calc($venda('2027-01-04', '3550308', ['pIBSUF' => 0.05, 'pIBSMun' => 0.05, 'pCBS' => 8.8]));
+        $this->assertSame([0.05, 0.05, 8.8], array_values($r['ibscbs']['aliquotas']));
         $this->assertSame(107.3, $r['itens'][0]['valor_item']);
         $this->assertSame(100, $r['totais']['ICMSTot']['vNF'], 'vNF nunca soma IBS/CBS');
 
-        // alíquotas no JSON têm prioridade
-        $r = $this->calc($venda('2027-01-04', '1302603', ['pIBSUF' => 0.1, 'pIBSMun' => 0, 'pCBS' => 0.9]));
-        $this->assertSame(['tipo' => 'informada'], $r['ibscbs']['origem_aliquotas']);
         $d = $this->calc($venda('2027-01-04', null, ['pIBSUF' => 0.1, 'pCBS' => 101]), 422);
         $this->assertCampoComErro($d, 'operacao.aliquotas_ibscbs.pIBSMun');
         $this->assertCampoComErro($d, 'operacao.aliquotas_ibscbs.pCBS');
-
-        // ano sem linha vigente: recusa
-        $d = $this->calc($venda('2025-12-31'), 422);
-        $this->assertCampoComErro($d, 'operacao.aliquotas_ibscbs');
-        $d = $this->calc($venda('2027-01-04', '9999999'), 422);
+        $d = $this->calc($venda('2027-01-04', '9999999', self::ALIQ_2026), 422);
         $this->assertCampoComErro($d, 'operacao.municipio_destino');
-
-        // vigência sobreposta para o mesmo local é recusada
-        try {
-            \App\Tributos\AliquotasIbsCbs::salvar(null, ['abrangencia' => 'uf', 'uf' => 'AM', 'inicio' => '2027-06-01', 'pIBSUF' => 0.06, 'pIBSMun' => 0.05, 'pCBS' => 8.8]);
-            $this->fail('deveria recusar');
-        } catch (\App\Http\ApiException $e) {
-            $this->assertSame('vigencia_sobreposta', $e->errorCode);
-        }
     }
 
-    public function testRotasDoAdministradorParaAliquotasMunicipiosECClassTrib(): void
+    public function testTabelasIbsCbsDaApiForamRetiradas(): void
     {
         \App\Support\Env::set('CENTRAL_AUTH', 'true');
         \App\Auth\CentralAccess::createUser(['nome' => 'Administrador', 'email' => 'admin@example.com', 'senha' => self::STRONG, 'acesso_central' => 'admin']);
         $r = $this->call('POST', '/api/v1/auth/login', (string) json_encode(['email' => 'admin@example.com', 'senha' => self::STRONG]));
         $s = $this->sessionFrom($r, 'admin@example.com');
-        $this->assertSame(403, $this->authed('GET', '/api/v1/admin/rtc/aliquotas')->status, 'chave de empresa não administra tabelas globais');
-
-        $r = $this->sess($s, 'POST', '/api/v1/admin/rtc/aliquotas', (string) json_encode(['abrangencia' => 'municipio', 'codigo_municipio' => '3550308',
-            'inicio' => '2027-01-01', 'pIBSUF' => 0.05, 'pIBSMun' => 0.06, 'pCBS' => 8.8, 'descricao' => 'São Paulo 2027']));
-        $this->assertSame(201, $r->status, $r->body);
-        $id = $this->json($r)['id'];
-        $l = $this->json($this->sess($s, 'GET', '/api/v1/admin/rtc/aliquotas?data=2027-03-01&municipio=3550308'));
-        $this->assertSame($id, $l['vigente']['origem']['id']);
-        $this->assertSame(200, $this->sess($s, 'PUT', "/api/v1/admin/rtc/aliquotas/$id", (string) json_encode(['abrangencia' => 'municipio',
-            'codigo_municipio' => '3550308', 'inicio' => '2027-01-01', 'fim' => '2027-12-31', 'pIBSUF' => 0.05, 'pIBSMun' => 0.06, 'pCBS' => 8.8]))->status);
-        $this->assertSame(204, $this->sess($s, 'DELETE', "/api/v1/admin/rtc/aliquotas/$id")->status);
-
-        $m = $this->json($this->sess($s, 'GET', '/api/v1/admin/rtc/municipios?uf=AM&busca=manau'))['municipios'];
-        $this->assertSame([['codigo' => '1302603', 'nome' => 'Manaus', 'uf' => 'AM']], $m);
-
-        $csv = "CST-IBS/CBS;cClassTrib;Nome cClassTrib;pRedIBS;pRedCBS;indNFe;indNFCe\n000;000001;Integral;0;0;1;1\n200;200034;Alimentos;60,00;60,00;1;0\n";
-        $r = $this->sess($s, 'POST', '/api/v1/admin/rtc/cclasstrib', (string) json_encode(['conteudo' => $csv, 'versao' => 'IT-1.70']));
-        $this->assertSame(200, $r->status, $r->body);
-        $this->assertSame(['carregada' => true, 'versao' => 'IT-1.70', 'total' => 2], array_intersect_key($this->json($r)['tabela'], ['carregada' => 1, 'versao' => 1, 'total' => 1]));
-        $r = $this->sess($s, 'POST', '/api/v1/admin/rtc/cclasstrib', (string) json_encode(['conteudo' => "cClassTrib;pRedIBS\n12;10\n"]));
-        $this->assertSame(422, $r->status);
-        $this->assertSame('IT-1.70', \App\Tributos\TabelaCClassTrib::info()['versao']);
-
-        // indNFCe = 0: o cClassTrib não pode ir na NFC-e
-        $d = $this->calc(['modelo' => 65, 'emitente' => ['crt' => 3, 'uf' => 'SP'], 'operacao' => ['data' => '2026-11-09'],
-            'itens' => [$this->item(['CST' => '200', 'cClassTrib' => '200034'])]], 422);
-        $this->assertStringContainsString('não é permitido na NFC-e', json_encode($d, JSON_UNESCAPED_UNICODE));
+        foreach (['/api/v1/admin/rtc/aliquotas', '/api/v1/admin/rtc/municipios', '/api/v1/admin/rtc/cclasstrib'] as $rota) {
+            $this->assertSame(404, $this->sess($s, 'GET', $rota)->status, $rota);
+        }
+        $this->assertSame(404, $this->authed('GET', '/api/v1/tributacao/cclasstrib')->status);
+        // qualquer cClassTrib de 6 dígitos coerente com o CST é aceito: a conferência fica com a SEFAZ
+        $r = $this->calc(['modelo' => 65, 'emitente' => ['crt' => 3, 'uf' => 'SP'], 'operacao' => ['data' => '2026-11-09', 'aliquotas_ibscbs' => self::ALIQ_2026],
+            'itens' => [$this->item(['cClassTrib' => '000987'])]]);
+        $this->assertSame('000', $r['itens'][0]['impostos']['ibscbs']['CST']);
     }
 
     public function testValidacoesDaRegra(): void
     {
         $d = $this->calc($this->venda([
-            $this->item(['CST' => '200', 'cClassTrib' => '200999']),
+            $this->item(['CST' => '200', 'cClassTrib' => '200034']),
             $this->item(['CST' => '000', 'cClassTrib' => '200034']),
             $this->item(['CST' => '620', 'cClassTrib' => '620001']),
             $this->item(['CST' => '000', 'cClassTrib' => '000001', 'pDif' => 10]),
-            $this->item(['CST' => '200', 'cClassTrib' => '200034', 'pRedIBS' => 60]),
+            $this->item(['CST' => '000', 'cClassTrib' => '000001', 'pRedIBS' => 60]),
+            $this->item(['CST' => '000', 'cClassTrib' => '12']),
         ]), 422);
-        foreach (['itens[0].regra.ibscbs.cClassTrib', 'itens[1].regra.ibscbs.cClassTrib', 'itens[2].regra.ibscbs.CST', 'itens[3].regra.ibscbs.pDif',
-            'itens[4].regra.ibscbs.pRedIBS'] as $c) {
+        foreach (['itens[0].regra.ibscbs.pRedIBS', 'itens[1].regra.ibscbs.cClassTrib', 'itens[2].regra.ibscbs.CST', 'itens[3].regra.ibscbs.pDif',
+            'itens[4].regra.ibscbs.pRedIBS', 'itens[5].regra.ibscbs.cClassTrib'] as $c) {
             $this->assertCampoComErro($d, $c);
         }
-        // fora da vigência da tabela
-        $d = $this->calc($this->venda([$this->item(['CST' => '000', 'cClassTrib' => '000002'])]), 422);
-        $this->assertCampoComErro($d, 'itens[0].regra.ibscbs.cClassTrib');
-        $this->assertStringContainsString('fora da vigência', json_encode($d, JSON_UNESCAPED_UNICODE));
     }
 
-    public function testTabelaCClassTribConsultaEAtualizacao(): void
+    public function testCClassTribDoProdutoNoItem(): void
     {
-        $t = $this->req('GET', '/tributacao/cclasstrib?cst=200');
-        $this->assertSame(['carregada' => true, 'versao' => 'IT-teste'], array_intersect_key($t['tabela'], ['carregada' => 1, 'versao' => 1]));
-        $this->assertSame(['200013', '200034'], array_column($t['itens'], 'cClassTrib'));
-        $this->assertSame(60, $t['itens'][1]['pRedIBS']);
-        $this->assertSame(['000001'], array_column($this->req('GET', '/tributacao/cclasstrib?busca=integral')['itens'], 'cClassTrib'));
-
-        // nova versão muda a redução: o cálculo segue a tabela, sem mexer na regra
-        $r = TabelaCClassTrib::importarLinhas([['CST' => '200', 'cClassTrib' => '200034', 'Nome cClassTrib' => 'Alimentos', 'pRedIBS' => '40', 'pRedCBS' => '40'],
-            ['CST' => '000', 'cClassTrib' => '000001']], 'teste', 'IT-2');
-        $this->assertSame(['total' => 2, 'incluidos' => 0, 'removidos' => 7, 'alterados' => 2], $r);
-        $c = $this->calc($this->venda([$this->item(['CST' => '200', 'cClassTrib' => '200034'])]));
-        $this->assertSame(0.54, $c['itens'][0]['impostos']['ibscbs']['gIBSCBS']['gCBS']['gRed']['pAliqEfet']);
-
-        // arquivo inválido é recusado inteiro e a tabela fica como estava
-        try {
-            TabelaCClassTrib::importarLinhas([['CST' => '000', 'cClassTrib' => '000001'], ['CST' => '200', 'cClassTrib' => '2000', 'pRedIBS' => '10']], 'x');
-            $this->fail('deveria recusar');
-        } catch (\InvalidArgumentException $e) {
-            $this->assertStringContainsString('cClassTrib inválido', $e->getMessage());
-        }
-        $this->assertSame('IT-2', TabelaCClassTrib::info()['versao']);
-    }
-
-    public function testCClassTribDoProdutoComPerfisDaMatriz(): void
-    {
-        $this->configurar(3);
-        $this->req('PUT', '/tributacao/perfis/1', ['nome' => 'PRODUTO TRIBUTADO', 'tipo' => 'icms']);
-        $this->req('PUT', '/tributacao/perfis/PC1', ['nome' => 'TRIBUTADO PIS/COFINS', 'tipo' => 'piscofins']);
-        $this->req('PUT', '/tributacao/operacoes/VENDA', ['nome' => 'VENDA DE PRODUTOS']);
-        $this->req('PUT', '/tributacao/regras-icms/1/VENDA/SP/F', ['descricao' => 'Tributado', 'cfop' => '5102', 'icms' => ['CST' => '00', 'pICMS' => 18]]);
-        $this->req('PUT', '/tributacao/regras-piscofins/PC1/VENDA', ['descricao' => 'Lucro real', 'pis' => ['CST' => '01', 'pPIS' => 1.65],
-            'cofins' => ['CST' => '01', 'pCOFINS' => 7.6]]);
-        // não existe mais regra/perfil de IBS/CBS
-        $this->req('PUT', '/tributacao/perfis/X', ['nome' => 'X', 'tipo' => 'ibscbs'], 422);
-
-        $base = ['quantidade' => 1, 'valor_unitario' => 100, 'origem' => 0, 'perfil_icms' => '1', 'perfil_piscofins' => 'PC1'];
-        $r = $this->req('POST', '/tributos/calcular', ['operacao' => ['codigo' => 'VENDA', 'data' => '2026-11-09', 'aliquotas_ibscbs' => self::ALIQ_2026],
-            'itens' => [$base + ['cclasstrib' => '000001'], $base + ['cclasstrib' => '200034']]]);
-        // CST vem da tabela; base: 100 − PIS 1,65 − COFINS 7,60 − ICMS 18 = 72,75
+        $regra = ['cfop' => '5102', 'icms' => ['CST' => '00', 'pICMS' => 18], 'pis' => ['CST' => '01', 'pPIS' => 1.65], 'cofins' => ['CST' => '01', 'pCOFINS' => 7.6]];
+        $base = ['quantidade' => 1, 'valor_unitario' => 100, 'origem' => 0, 'regra' => $regra];
+        $op = ['data' => '2026-11-09', 'aliquotas_ibscbs' => self::ALIQ_2026];
+        $r = $this->req('POST', '/tributos/calcular', ['emitente' => ['crt' => 3, 'uf' => 'SP'], 'operacao' => $op, 'itens' => [
+            $base + ['cclasstrib' => '000001'],
+            ['cclasstrib' => '200034', 'regra' => $regra + ['ibscbs' => ['pRedIBS' => 60, 'pRedCBS' => 60]]] + $base,
+        ]]);
+        // CST = 3 primeiros dígitos do cClassTrib; base: 100 − PIS 1,65 − COFINS 7,60 − ICMS 18 = 72,75
         $this->assertSame('000', $r['itens'][0]['impostos']['ibscbs']['CST']);
         $this->assertSame('200', $r['itens'][1]['impostos']['ibscbs']['CST']);
         $this->assertSame(72.75, $r['itens'][1]['impostos']['ibscbs']['gIBSCBS']['vBC']);
         // CBS 0,9 × (1 − 60%) = 0,36% → 0,26
         $this->assertSame(0.26, $r['itens'][1]['impostos']['ibscbs']['gIBSCBS']['gCBS']['vCBS']);
 
-        $d = $this->req('POST', '/tributos/calcular', ['operacao' => ['codigo' => 'VENDA', 'aliquotas_ibscbs' => self::ALIQ_2026],
+        $d = $this->req('POST', '/tributos/calcular', ['emitente' => ['crt' => 3, 'uf' => 'SP'], 'operacao' => $op,
             'itens' => [$base + ['cclasstrib' => '999999'], $base + ['cclasstrib' => '12']]], 422);
         $campos = array_column($d['erro']['detalhes'], 'campo');
         $this->assertContains('itens[0].regra.ibscbs.CST', $campos); // 999 não é CST calculado
         $this->assertContains('itens[1].cclasstrib', $campos);
         // diferimento: cClassTrib do produto + percentual na regra do item
-        $r = $this->req('POST', '/tributos/calcular', ['operacao' => ['codigo' => 'VENDA', 'aliquotas_ibscbs' => self::ALIQ_2026],
-            'itens' => [$base + ['cclasstrib' => '510001', 'regra' => ['ibscbs' => ['pDif' => 100]]]]]);
+        $r = $this->req('POST', '/tributos/calcular', ['emitente' => ['crt' => 3, 'uf' => 'SP'], 'operacao' => $op,
+            'itens' => [['cclasstrib' => '510001', 'regra' => $regra + ['ibscbs' => ['pDif' => 100]]] + $base]]);
         $this->assertSame(0, $r['itens'][0]['impostos']['ibscbs']['gIBSCBS']['gCBS']['vCBS']);
+
+        // perfis e operações da matriz foram retirados
+        $d = $this->req('POST', '/tributos/calcular', ['operacao' => ['codigo' => 'VENDA', 'aliquotas_ibscbs' => self::ALIQ_2026],
+            'itens' => [['quantidade' => 1, 'valor_unitario' => 100, 'perfil_icms' => '1', 'perfil_piscofins' => 'PC1']]], 422);
+        $campos = array_column($d['erro']['detalhes'], 'campo');
+        foreach (['operacao.codigo', 'itens[0].perfil_icms', 'itens[0].perfil_piscofins'] as $c) {
+            $this->assertContains($c, $campos);
+        }
+        $this->assertStringContainsString('foram retirados', json_encode($d, JSON_UNESCAPED_UNICODE));
     }
 
     public function testEmissaoNfeDryRunMontaGruposNoXmlValidado(): void
@@ -358,7 +279,6 @@ final class TributosIbsCbsTest extends TestCase
         $venda = $this->venda([
             $this->item(['cClassTrib' => '000001']),                                   // base 82: IBS 82×1% = 0,82; CBS 82×3% = 2,46
             $this->item(['cClassTrib' => '410014'], ['orig' => 0, 'CST' => '41'], 50), // sem gIBSCBS: base 50 → 0,50 e 1,50
-            $this->item(['cClassTrib' => '000003']),                                   // cClassTrib não admite: alerta e sem grupo
             $this->item(['cClassTrib' => '000001'], extra: ['credito_presumido' => null]),
         ]);
         $venda['operacao']['credito_presumido'] = ['cCredPres' => 1, 'pCredPresIBS' => 1, 'pCredPresCBS' => 3];
@@ -369,12 +289,10 @@ final class TributosIbsCbsTest extends TestCase
             'gCBSCredPres' => ['pCredPres' => 3, 'vCredPres' => 1.5]], $r['itens'][1]['impostos']['ibscbs']['gCredPresOper']);
         $this->assertArrayNotHasKey('gIBSCBS', $r['itens'][1]['impostos']['ibscbs']);
         $this->assertArrayNotHasKey('gCredPresOper', $r['itens'][2]['impostos']['ibscbs']);
-        $this->assertStringContainsString('não admite crédito presumido', implode(' ', $r['itens'][2]['alertas'] ?? []) . json_encode($r['alertas'], JSON_UNESCAPED_UNICODE));
-        $this->assertArrayNotHasKey('gCredPresOper', $r['itens'][3]['impostos']['ibscbs']);
         $this->assertSame(1.32, $r['totais']['IBSCBSTot']['gIBS']['vCredPres']);
         $this->assertSame(3.96, $r['totais']['IBSCBSTot']['gCBS']['vCredPres']);
 
-        // só CBS no item; erros: código inválido, sem percentual, item com cClassTrib que não admite
+        // só CBS no item; erros: código inválido, sem percentual (na operação e no item)
         $venda['operacao']['credito_presumido'] = ['cCredPres' => '2', 'pCredPresCBS' => 2.5];
         $r = $this->calc($venda);
         $this->assertSame(['vBCCredPres' => 82, 'cCredPres' => '02', 'gCBSCredPres' => ['pCredPres' => 2.5, 'vCredPres' => 2.05]],
@@ -384,7 +302,7 @@ final class TributosIbsCbsTest extends TestCase
         $venda['operacao']['credito_presumido'] = ['cCredPres' => 1];
         $this->assertCampoComErro($this->calc($venda, 422), 'operacao.credito_presumido');
         unset($venda['operacao']['credito_presumido']);
-        $venda['itens'][2]['credito_presumido'] = ['cCredPres' => 1, 'pCredPresIBS' => 1];
+        $venda['itens'][2]['credito_presumido'] = ['cCredPres' => 1];
         $this->assertCampoComErro($this->calc($venda, 422), 'itens[2].credito_presumido');
     }
 

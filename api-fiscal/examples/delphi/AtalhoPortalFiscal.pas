@@ -9,11 +9,11 @@ unit AtalhoPortalFiscal;
 
   Uso:
     TAtalhoPortalFiscal.Abrir('C:\LSI\fiscal-api.ini', IntToStr(Usuario.Id),
-      Usuario.Nome, Usuario.Email, 'fiscal', 'cliente', 'regras-icms', 'ClickPDV');
+      Usuario.Nome, Usuario.Email, 'fiscal', 'cliente', 'inicio', 'ClickPDV');
 
   Perfil: 'fiscal' (pode alterar regras) ou 'consulta' (somente leitura).
   Tipo de usuário: 'cliente' ou 'contador'.
-  Aba: inicio, perfis, operacoes, regras-icms, regras-piscofins, simulador.
+  Aba: inicio (as abas antigas da tributação ainda são aceitas e abrem o início).
 }
 
 interface
